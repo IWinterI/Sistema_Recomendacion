@@ -4,8 +4,39 @@
 #include <cctype>
 #include <algorithm>
 #include <iomanip>
+#include <set>
+#include <memory>
+#include <limits>
+#include <random>
+#include <sstream>
 
 //**Estructuras**
+
+//Estructuras de usuario
+
+struct Nodolista
+{
+    std::string dato;
+    Nodolista *siguiente;
+};
+
+struct Usuario
+{
+    std::string nombre;
+    std::string apellido;
+    std::string id;
+    std::string usuario;
+    std::string password;
+    Nodolista *preferencias;
+    Nodolista *historial;
+};
+
+struct Nodoarbol
+{
+    Usuario dato;
+    Nodoarbol *izquierda;
+    Nodoarbol *derecha;
+};
 
 //Estructura de productos
 
@@ -17,7 +48,7 @@ struct Producto {
     int calidad;
     std::string categoria;
 
-    // Constructor con validación de calidad
+    // Constructor con validaciÃ³n de calidad
     Producto(std::string desc = "", int id = 0, std::string marca = "",
              double precio = 0.0, int calidad = 1, std::string categoria = "")
         : descripcion(desc), id(id), marca(marca), precio(precio), categoria(categoria)
@@ -28,22 +59,224 @@ struct Producto {
         else this->calidad = calidad;
     }
 
-    // Función para mostrar información del producto
+    // FunciÃ³n para mostrar informaciÃ³n del producto
     void mostrar() const {
         std::cout << "ID: " << id
                   << "\nProducto: " << descripcion
                   << "\nCategoria: " << categoria
                   << "\nMarca: " << marca
-                  << "\nPrecio: $" << std::fixed << std::setprecision(2) << precio << "$"
+                  << "\nPrecio: $" << std::fixed << std::setprecision(2) << precio
                   << "\nCalidad: " << std::string(calidad, '*')
                   << " (" << calidad << "/5)\n\n";
     }
 
 };
 
-//**Funciones principales de los productos**
+/* Declaraciones globales */
 
-// Función para generar el catálogo de productos electrónicos
+// Registros de usuarios
+Nodoarbol *Usuarios = nullptr;
+
+// CatÃ¡logo global de productos
+std::vector<Producto> catalogoGlobal;
+
+// Caracteres para ids
+const std::string CARACTERES_VALIDOS =
+    "1234567890"
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    "abcdefghijklmnopqrstuvwxyz"
+    "!#$%&/()=?Ã‚Ë‡',.-;:_";
+
+
+//**Funciones principales de la gestion de usuarios**
+
+// Imprimir centrado
+void printCentered(const std::string &text, int width = 50)
+{
+    int padding = (width - static_cast<int>(text.length())) / 2;
+    if (padding > 0)
+        std::cout << std::string(padding, ' ');
+    std::cout << text << std::endl;
+}
+
+// Funciones para arbol de busqueda
+
+// Crear un nuevo nodo
+Nodoarbol *crearNodo(Usuario valor)
+{
+    Nodoarbol *nuevo = new Nodoarbol;
+    nuevo->dato = valor;
+    nuevo->izquierda = nullptr;
+    nuevo->derecha = nullptr;
+
+    return nuevo;
+}
+
+// Insertar un nuevo nodo
+Nodoarbol *insertar(Nodoarbol *&raiz, Usuario &usuario)
+{
+    // caso base
+    if (raiz == nullptr)
+    {
+        raiz = crearNodo(usuario);
+        return raiz;
+    }
+
+    // caso recursivo
+    if (usuario.usuario < raiz->dato.usuario)
+    {
+        raiz->izquierda = insertar(raiz->izquierda, usuario);
+    }
+    else if (usuario.usuario > raiz->dato.usuario)
+    {
+        raiz->derecha = insertar(raiz->derecha, usuario);
+    }
+
+    return raiz; // Esto es para ignorar a usuarios duplicados
+}
+
+// Buscar un nodo
+Nodoarbol *buscar(Nodoarbol *raiz, const std::string &usuario)
+{
+    // caso base
+    if (raiz == nullptr || raiz->dato.usuario == usuario)
+    {
+        return raiz;
+    }
+
+    // caso recursivo
+    if (usuario < raiz->dato.usuario)
+    {
+        return buscar(raiz->izquierda, usuario);
+    }
+    else
+    {
+        return buscar(raiz->derecha, usuario);
+    }
+}
+
+bool verificarPassword(Nodoarbol *nodo, const std::string &password)
+{
+    return nodo && nodo->dato.password == password;
+}
+
+// Recorrer arbol
+void inorden(Nodoarbol *raiz)
+{
+    if (raiz != nullptr)
+    {
+        inorden(raiz->izquierda);
+        std::cout << "Id: " << raiz->dato.id << std::endl;
+        std::cout << "Usuario: " << raiz->dato.usuario << std::endl;
+        inorden(raiz->derecha);
+    }
+}
+
+// Generar id de los usuarios
+std::string generarID()
+{
+    std::random_device rd;
+    std::mt19937 generador(rd());
+    std::uniform_int_distribution<int> distribucion(0, CARACTERES_VALIDOS.size() - 1);
+
+    std::string id;
+    for (int i = 0; i < 10; i++)
+    {
+        id += CARACTERES_VALIDOS[distribucion(generador)];
+    }
+
+    return id;
+}
+
+// imprimir un usuario registrado
+void imprimirUsuario(Usuario &usuario)
+{
+    std::cout << std::string(50, '=') << std::endl;
+    printCentered("Felicidades, nuevo usuario registrado.");
+    std::cout << std::string(50, '=') << std::endl;
+
+    std::cout << std::string(50, '-') << std::endl;
+    std::cout << "Nombre: " << usuario.nombre << std::endl;
+
+    std::cout << std::string(50, '-') << std::endl;
+    std::cout << "Apellido: " << usuario.apellido << std::endl;
+
+    std::cout << std::string(50, '-') << std::endl;
+    std::cout << "Usuairo: " << usuario.usuario << std::endl;
+
+    std::cout << std::string(50, '-') << std::endl;
+    std::cout << "ID: " << usuario.id << std::endl;
+
+    std::cout << std::string(50, '-') << std::endl;
+    std::cout << "Password: " << usuario.password << std::endl;
+    std::cout << std::string(50, '-') << std::endl;
+}
+
+
+//**Funciones de utilidades**
+
+// Limpiar consola
+void clearScreen()
+{
+#ifdef _WIN32
+    system("cls");
+#else
+    system("clear");
+#endif
+}
+
+// Pausar programa
+void pausarConsola()
+{
+    std::cout << "\nPresione Enter para continuar...";
+    std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+    std::cin.get(); // Espera a que se presione Enter
+}
+
+// Mensaje de error para opciones invalidas del menu
+void opcioninvalida(int min, int max)
+{
+    std::cout << std::string(50, '=') << std::endl;
+    std::cout << "Opcion invalida." << std::endl;
+    std::cout << "Por favor ingrese un numero entre (" << min << "-" << max << ")" << std::endl;
+    std::cout << std::string(50, '=') << std::endl;
+}
+
+// Imprimir el encabezado de una opcion
+void encabezado(const std::string &titulo)
+{
+    std::cout << std::string(50, '=') << std::endl;
+    printCentered(titulo);
+    std::cout << std::string(50, '=') << std::endl;
+}
+
+// Leer texto por consola, con espacio y autoajustado
+std::string leertexto()
+{
+    std::string entrada;
+
+    // Limpiar posibles saltos de lÃ­nea previos
+    if (std::cin.peek() == '\n')
+    {
+        std::cin.ignore();
+    }
+
+    // Leer la lÃ­nea completa
+    std::getline(std::cin, entrada);
+
+    // Eliminar espacios en blanco al inicio/final
+    size_t inicio = entrada.find_first_not_of(" ");
+    size_t fin = entrada.find_last_not_of(" ");
+
+    if (inicio == std::string::npos)
+    { // Si es cadena vacÃ­a
+        return "";
+    }
+
+    return entrada.substr(inicio, fin - inicio + 1);
+}
+
+// FunciÃ³n para generar el catÃ¡logo de productos electrÃ³nicos
 std::vector<Producto> generarCatalogo() {
     return {
         // Smartphones (10 productos)
@@ -112,8 +345,7 @@ std::vector<Producto> generarCatalogo() {
     };
 }
 
-
-// Función auxiliar para convertir a minúsculas (búsquedas insensibles a mayúsculas)
+// FunciÃ³n auxiliar para convertir a minÃºsculas (bÃºsquedas insensibles a mayÃºsculas)
 std::string aMinusculas(const std::string& texto) {
     std::string resultado = texto;
     std::transform(resultado.begin(), resultado.end(), resultado.begin(),
@@ -121,7 +353,7 @@ std::string aMinusculas(const std::string& texto) {
     return resultado;
 }
 
-// 1. Búsqueda por categoría (insensible a mayúsculas)
+// 1. BÃºsqueda por categorÃ­a (insensible a mayÃºsculas)
 std::vector<Producto> buscarPorCategoria(const std::vector<Producto>& productos,
                                         const std::string& categoriaBuscada) {
     std::vector<Producto> resultados;
@@ -135,76 +367,522 @@ std::vector<Producto> buscarPorCategoria(const std::vector<Producto>& productos,
     return resultados;
 }
 
-// 2. Búsqueda por rango de precios
-std::vector<Producto> buscarPorRangoPrecios(const std::vector<Producto>& productos,
-                                           double precioMin, double precioMax) {
-    std::vector<Producto> resultados;
+//**Funciones para listas enlazadas**
 
-    for (const auto& prod : productos) {
-        if (prod.precio >= precioMin && prod.precio <= precioMax) {
-            resultados.push_back(prod);
+// Insertar un elemento al final de la lista
+void insertarLista(Nodolista*& lista, const std::string& valor) {
+    Nodolista* nuevo = new Nodolista;
+    nuevo->dato = valor;
+    nuevo->siguiente = nullptr;
+
+    if (lista == nullptr) {
+        lista = nuevo;
+    } else {
+        Nodolista* actual = lista;
+        while (actual->siguiente != nullptr) {
+            actual = actual->siguiente;
         }
+        actual->siguiente = nuevo;
     }
-    return resultados;
 }
 
-// 3. Búsqueda por marca (insensible a mayúsculas)
-std::vector<Producto> buscarPorMarca(const std::vector<Producto>& productos,
-                                    const std::string& marcaBuscada) {
-    std::vector<Producto> resultados;
-    std::string marcaLower = aMinusculas(marcaBuscada);
-
-    for (const auto& prod : productos) {
-        if (aMinusculas(prod.marca) == marcaLower) {
-            resultados.push_back(prod);
+// Verificar si un valor existe en la lista
+bool existeEnLista(Nodolista* lista, const std::string& valor) {
+    Nodolista* actual = lista;
+    while (actual != nullptr) {
+        if (actual->dato == valor) {
+            return true;
         }
+        actual = actual->siguiente;
     }
-    return resultados;
+    return false;
 }
 
-// 4. Búsqueda por descripción (insensible a mayúsculas y subcadenas)
-std::vector<Producto> buscarPorDescripcion(const std::vector<Producto>& productos,
-                                         const std::string& textoBuscado) {
-    std::vector<Producto> resultados;
-    std::string textoLower = aMinusculas(textoBuscado);
+//**Funciones para el sistema de recomendaciÃ³n**
 
-    for (const auto& prod : productos) {
-        std::string descLower = aMinusculas(prod.descripcion);
-        if (descLower.find(textoLower) != std::string::npos) {
-            resultados.push_back(prod);
+// Obtener categorÃ­as Ãºnicas del catÃ¡logo
+std::vector<std::string> obtenerCategoriasUnicas() {
+    std::set<std::string> categoriasSet;
+    for (const auto& producto : catalogoGlobal) {
+        categoriasSet.insert(producto.categoria);
+    }
+    return std::vector<std::string>(categoriasSet.begin(), categoriasSet.end());
+}
+
+// Mostrar productos por categorÃ­a (solo nombres)
+void mostrarProductosPorCategoria(const std::string& categoria) {
+    std::vector<Producto> productos = buscarPorCategoria(catalogoGlobal, categoria);
+    std::cout << "\n=== " << categoria << " ===\n";
+    for (const auto& producto : productos) {
+        std::cout << "ID: " << producto.id << " - " << producto.descripcion << "\n";
+    }
+    std::cout << "------------------------\n";
+}
+
+// Mostrar detalles de un producto y agregar al historial
+void verDetallesProducto(int idProducto, Usuario* usuario) {
+    for (const auto& producto : catalogoGlobal) {
+        if (producto.id == idProducto) {
+            clearScreen();
+            producto.mostrar();
+
+            // Registrar en el historial si no existe
+            std::string idStr = std::to_string(idProducto);
+            if (!existeEnLista(usuario->historial, idStr)) {
+                insertarLista(usuario->historial, idStr);
+            }
+
+            pausarConsola();
+            return;
         }
     }
-    return resultados;
+    std::cout << "Producto no encontrado.\n";
+    pausarConsola();
 }
+
+// Obtener la categorÃ­a mÃ¡s frecuente en el historial
+std::string obtenerCategoriaFrecuente(Usuario* usuario) {
+    // Contar categorÃ­as en el historial
+    std::vector<std::pair<std::string, int>> conteo;
+
+    Nodolista* actual = usuario->historial;
+    while (actual != nullptr) {
+        int id = std::stoi(actual->dato);
+        for (const auto& producto : catalogoGlobal) {
+            if (producto.id == id) {
+                bool encontrado = false;
+                for (auto& par : conteo) {
+                    if (par.first == producto.categoria) {
+                        par.second++;
+                        encontrado = true;
+                        break;
+                    }
+                }
+                if (!encontrado) {
+                    conteo.push_back({producto.categoria, 1});
+                }
+                break;
+            }
+        }
+        actual = actual->siguiente;
+    }
+
+    // Encontrar la categorÃ­a con mayor conteo
+    if (conteo.empty()) {
+        return "";
+    }
+
+    std::string categoriaFrecuente = conteo[0].first;
+    int maxConteo = conteo[0].second;
+
+    for (const auto& par : conteo) {
+        if (par.second > maxConteo) {
+            maxConteo = par.second;
+            categoriaFrecuente = par.first;
+        }
+    }
+
+    return categoriaFrecuente;
+}
+
+// Generar productos recomendados
+std::vector<Producto> generarRecomendaciones(Usuario* usuario) {
+    std::vector<Producto> recomendados;
+    std::string categoriaFrecuente = obtenerCategoriaFrecuente(usuario);
+
+    if (categoriaFrecuente.empty()) {
+        return recomendados;
+    }
+
+    // Obtener productos de la categorÃ­a frecuente
+    std::vector<Producto> productosCategoria = buscarPorCategoria(catalogoGlobal, categoriaFrecuente);
+
+    // Filtrar productos no vistos
+    for (const auto& producto : productosCategoria) {
+        std::string idStr = std::to_string(producto.id);
+        if (!existeEnLista(usuario->historial, idStr)) {
+            recomendados.push_back(producto);
+        }
+    }
+
+    return recomendados;
+}
+
+//**MenÃº de usuario**
+
+void mostrarMenuUsuario(Usuario* usuario) {
+    int opcion;
+    bool salir = false;
+    std::vector<std::string> categorias = obtenerCategoriasUnicas();
+
+    while (!salir) {
+        clearScreen();
+        encabezado("Bienvenido, " + usuario->nombre);
+        std::cout << "1. Ver catalogo de productos\n";
+        std::cout << "2. Ver recomendaciones\n";
+        std::cout << "3. Cerrar sesion\n";
+        std::cout << "------------------------\n";
+        std::cout << "Seleccione una opcion: ";
+        std::cin >> opcion;
+        std::cin.ignore(); // Limpiar buffer
+
+        switch (opcion) {
+            case 1: {
+                // Mostrar productos por categorÃ­a
+                clearScreen();
+                encabezado("Catalogo de Productos");
+                for (const auto& categoria : categorias) {
+                    mostrarProductosPorCategoria(categoria);
+                }
+
+                // Permitir selecciÃ³n de producto
+                std::cout << "Ingrese el ID del producto para ver detalles (0 para volver): ";
+                int idProducto;
+                std::cin >> idProducto;
+                std::cin.ignore();
+
+                if (idProducto != 0) {
+                    verDetallesProducto(idProducto, usuario);
+                }
+                break;
+            }
+            case 2: {
+                // Mostrar recomendaciones
+                clearScreen();
+                encabezado("Recomendaciones para ti");
+
+                std::vector<Producto> recomendaciones = generarRecomendaciones(usuario);
+                if (recomendaciones.empty()) {
+                    std::cout << "No hay recomendaciones disponibles. Vea algunos productos primero.\n";
+                } else {
+                    std::cout << "Basado en tus intereses:\n";
+                    for (const auto& producto : recomendaciones) {
+                        std::cout << "ID: " << producto.id << " - " << producto.descripcion << "\n";
+                    }
+
+                    // Permitir selecciÃ³n de producto recomendado
+                    std::cout << "\nIngrese el ID del producto para ver detalles (0 para volver): ";
+                    int idProducto;
+                    std::cin >> idProducto;
+                    std::cin.ignore();
+
+                    if (idProducto != 0) {
+                        verDetallesProducto(idProducto, usuario);
+                    }
+                }
+                pausarConsola();
+                break;
+            }
+            case 3:
+                salir = true;
+                clearScreen();
+                encabezado("Sesion finalizada");
+                pausarConsola();
+                break;
+            default:
+                opcioninvalida(1, 3);
+                pausarConsola();
+                break;
+        }
+    }
+}
+
+/* Comandos */
+
+// Comando para registrar un usuario
+void ComandoRegistrarUsuario()
+{
+    clearScreen();
+    encabezado("Registro de usuario");
+    std::cout << std::string(50, '=') << std::endl;
+
+    Usuario nuevo;
+    bool cancelado = false;
+
+    // FunciÃ³n para validar campos vacÃ­os
+    auto validarCampo = [](const std::string &valor, const std::string &campo) -> bool
+    {
+        if (valor.empty())
+        {
+            std::cout << std::string(50, '-') << std::endl;
+            std::cout << "ERROR: El " << campo << " no puede estar vacio" << std::endl;
+            std::cout << std::string(50, '-') << std::endl;
+            return false;
+        }
+        return true;
+    };
+
+    // Validar nombre
+    do
+    {
+        std::cout << std::string(50, '-') << std::endl;
+        std::cout << "Nombre: " << std::endl;
+        nuevo.nombre = leertexto();
+    } while (!validarCampo(nuevo.nombre, "nombre"));
+    std::cout << std::string(50, '-') << std::endl;
+    std::cout << "Nombre registrado: " << nuevo.nombre << std::endl;
+
+    // Validar apellido
+    do
+    {
+        std::cout << std::string(50, '-') << std::endl;
+        std::cout << "Apellido: " << std::endl;
+        nuevo.apellido = leertexto();
+    } while (!validarCampo(nuevo.apellido, "apellido"));
+    std::cout << std::string(50, '-') << std::endl;
+    std::cout << "Apellido registrado: " << nuevo.apellido << std::endl;
+
+    // Validar usuario
+    do
+    {
+        std::cout << std::string(50, '-') << std::endl;
+        std::cout << "Usuario: " << std::endl;
+        std::string input = leertexto();
+
+        // Validar vacÃ­o
+        if (!validarCampo(input, "usuario"))
+            continue;
+
+        // Validar espacios
+        if (input.find(' ') != std::string::npos)
+        {
+            std::cout << std::string(50, '-') << std::endl;
+            std::cout << "ERROR: El usuario no puede contener espacios" << std::endl;
+            continue;
+        }
+
+        // Verificar unicidad
+        Nodoarbol *coincidencia = buscar(Usuarios, input);
+        if (coincidencia != nullptr)
+        {
+            std::cout << std::string(50, '-') << std::endl;
+            std::cout << std::string(50, '=') << std::endl;
+            std::cout << "Usuario '" << input << "' ya registrado." << std::endl;
+            std::cout << std::string(50, '=') << std::endl;
+
+            std::cout << std::string(50, '-') << std::endl;
+            std::cout << "Desea intentar con otro usuario? (s/n): ";
+            std::string continuar = leertexto();
+            std::cout << std::string(50, '-') << std::endl;
+
+            if (continuar == "n" || continuar == "N")
+            {
+                std::cout << std::string(50, '=') << std::endl;
+                printCentered("Registro de usuario cancelado");
+                std::cout << std::string(50, '=') << std::endl;
+                cancelado = true;
+                break;
+            }
+            continue;
+        }
+
+        nuevo.usuario = input;
+        std::cout << std::string(50, '-') << std::endl;
+        std::cout << "Usuario registrado: " << nuevo.usuario << std::endl;
+        break;
+    } while (true);
+
+    if (cancelado)
+    {
+        pausarConsola();
+        return;
+    }
+
+    // Validar contraseÃ±a
+    do
+    {
+        std::cout << std::string(50, '-') << std::endl;
+        std::cout << "Password (minimo 6 caracteres): " << std::endl;
+        nuevo.password = leertexto();
+
+        // Validar longitud mÃ­nima
+        if (nuevo.password.length() < 6)
+        {
+            std::cout << std::string(50, '-') << std::endl;
+            std::cout << "ERROR: La password debe tener minimo 6 caracteres" << std::endl;
+            continue;
+        }
+        break;
+    } while (true);
+
+    std::cout << std::string(50, '-') << std::endl;
+    std::cout << "Password registrada: " << nuevo.password << std::endl;
+    std::cout << std::string(50, '-') << std::endl;
+    std::cout << std::string(50, '=') << std::endl;
+
+    // Generar id
+    nuevo.id = generarID();
+
+    // Inicializar estructuras
+    nuevo.historial = nullptr;
+    nuevo.preferencias = nullptr;
+
+    // Guardar usuario
+    insertar(Usuarios, nuevo);
+
+    // Mostrar resultado
+    clearScreen();
+    std::cout << std::string(50, '=') << std::endl;
+    printCentered("REGISTRO EXITOSO!");
+    std::cout << std::string(50, '=') << std::endl;
+    imprimirUsuario(nuevo);
+    std::cout << std::string(50, '=') << std::endl;
+    pausarConsola();
+}
+
+// Comando para ingresar con un usuario
+Usuario* ComandoIngresarUsuario()
+{
+    do
+    {
+        clearScreen();
+        encabezado("Ingresar a la plataforma.");
+        std::cout << std::string(50, '=') << std::endl;
+
+        std::cout << std::string(50, '-') << std::endl;
+        std::cout << "Ingrese el usuario: " << std::endl;
+        std::string usuario = leertexto();
+        std::cout << std::string(50, '-') << std::endl;
+
+        Nodoarbol *ingreso = buscar(Usuarios, usuario);
+
+        if (ingreso == nullptr)
+        {
+            std::cout << std::string(50, '=') << std::endl;
+            std::cout << "El usuario '" << usuario << "' no existe." << std::endl;
+            std::cout << std::string(50, '=') << std::endl;
+
+            std::cout << std::string(50, '-') << std::endl;
+            std::cout << "Desea probar con otro usuario? (s/n): ";
+            std::string opcion = leertexto();
+
+            if (opcion == "n" || opcion == "N")
+            {
+                clearScreen();
+                std::cout << std::string(50, '=') << std::endl;
+                printCentered("Saliendo del login");
+                std::cout << std::string(50, '=') << std::endl;
+                pausarConsola();
+                return nullptr;
+            }
+            continue;
+        }
+
+        int intentos = 0;
+        const int MAX_INTENTOS = 3;
+
+        while (intentos < MAX_INTENTOS)
+        {
+            std::cout << std::string(50, '-') << std::endl;
+            std::cout << "Ingrese la password: " << std::endl;
+            std::string password = leertexto();
+            std::cout << std::string(50, '-') << std::endl;
+
+            if (verificarPassword(ingreso, password))
+            {
+                clearScreen();
+                encabezado("LOGIN EXITOSO");
+                pausarConsola();
+                return &(ingreso->dato);
+            }
+            else
+            {
+                intentos++;
+                std::cout << std::string(50, '=') << std::endl;
+                std::cout << "Password incorrecta. Intento " << intentos << "/" << MAX_INTENTOS << std::endl;
+                std::cout << std::string(50, '=') << std::endl;
+
+                if (intentos < MAX_INTENTOS)
+                {
+                    std::cout << std::string(50, '-') << std::endl;
+                    std::cout << "Desea intentar de nuevo? (s/n): ";
+                    std::string reintentar = leertexto();
+
+                    if (reintentar == "n" || reintentar == "N")
+                    {
+                        clearScreen();
+                        std::cout << std::string(50, '=') << std::endl;
+                        printCentered("Saliendo del login");
+                        std::cout << std::string(50, '=') << std::endl;
+                        pausarConsola();
+                        return nullptr;
+                    }
+                }
+            }
+        }
+
+        // Si se superan los intentos mÃ¡ximos
+        std::cout << std::string(50, '=') << std::endl;
+        printCentered("Ha superado el maximo de intentos");
+        std::cout << std::string(50, '=') << std::endl;
+        pausarConsola();
+        return nullptr;
+
+    } while (true);
+}
+
+/* Menus */
+
+void procesarMainmenu(int opcion)
+{
+    switch (opcion)
+    {
+    case 1:
+        clearScreen();
+        ComandoRegistrarUsuario();
+        break;
+
+    case 2:
+    	clearScreen();
+    	Usuario* usuario = ComandoIngresarUsuario();
+        if (usuario != nullptr) {
+            mostrarMenuUsuario(usuario);
+        }
+        break;
+    }
+}
+
+void Mainmenu()
+{
+    int opcion;
+
+    do
+    {
+        clearScreen();
+        encabezado("Bienvenid@ a Quantum Store.");
+        std::cout << std::string(50, '-') << std::endl;
+        std::cout << "1.-Registrar un nuevo usuario." << std::endl;
+        std::cout << "2.-Ingresar con un usuario existente." << std::endl;
+        std::cout << "3.-Salir." << std::endl;
+        std::cout << std::string(50, '-') << std::endl;
+        std::cout << "Ingrese una opcion: ";
+        std::cin >> opcion;
+        std::cin.ignore();
+        std::cout << std::string(50, '-') << std::endl;
+        std::cout << std::string(50, '=') << std::endl;
+
+        if (opcion == 3)
+        {
+            break;
+        }
+        else
+        {
+            procesarMainmenu(opcion);
+        }
+
+    } while (true);
+}
+
 
 int main() {
-    // Generar catálogo de productos
-    std::vector<Producto> catalogo = generarCatalogo();
+    // Generar catÃ¡logo global
+    catalogoGlobal = generarCatalogo();
 
-    std::cout << "===== CATALOGO ELECTRONICO COMPLETO (50 productos) =====\n";
-    for (const auto& producto : catalogo) {
-        producto.mostrar();
-    }
+    Mainmenu();
 
-    // Ejemplo de búsquedas
-    std::cout << "\n\n===== PRODUCTOS APPLE (Busqueda por marca) =====\n";
-    auto resultadosApple = buscarPorMarca(catalogo, "apple");
-    for (const auto& p : resultadosApple) {
-        p.mostrar();
-    }
-
-    std::cout << "\n\n===== SMARTPHONES GAMA ALTA (> $800) =====\n";
-    auto smartphonesAltaGama = buscarPorCategoria(resultadosApple, "Smartphones");
-    smartphonesAltaGama = buscarPorRangoPrecios(smartphonesAltaGama, 800.0, 2000.0);
-    for (const auto& p : smartphonesAltaGama) {
-        p.mostrar();
-    }
-
-    std::cout << "\n\n===== PRODUCTOS CON 'PRO' EN DESCRIPCIoN =====\n";
-    auto resultadosPro = buscarPorDescripcion(catalogo, "pro");
-    for (const auto& p : resultadosPro) {
-        p.mostrar();
-    }
+    std::cout << std::string(50, '=') << std::endl;
+    printCentered("Gracias por visitar.");
+    std::cout << std::string(50, '=') << std::endl;
 
     return 0;
 }
