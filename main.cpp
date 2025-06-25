@@ -30,8 +30,8 @@ struct Usuario
     std::string password;
     Nodolista *preferencias;
     Nodolista *historial;
-    Nodolista *carrito;     
-    Nodolista *listaDeseos; 
+    Nodolista *carrito;
+    Nodolista *listaDeseos;
 };
 
 struct Nodoarbol
@@ -509,22 +509,8 @@ EstadisticasUsuario obtenerEstadisticasUsuario(Usuario *usuario)
 
 std::vector<Producto> generarRecomendaciones(Usuario *usuario)
 {
-
+    const int MAX_RECOMENDACIONES = 20;
     std::map<int, double> puntuaciones;
-
-    if (usuario->preferencias != nullptr)
-    {
-        Nodolista *pref = usuario->preferencias;
-        while (pref != nullptr)
-        {
-            std::vector<Producto> productosCategoria = buscarPorCategoria(catalogoGlobal, pref->dato);
-            for (const auto &prod : productosCategoria)
-            {
-                puntuaciones[prod.id] += 10.0;
-            }
-            pref = pref->siguiente;
-        }
-    }
 
     if (usuario->carrito != nullptr)
     {
@@ -532,7 +518,7 @@ std::vector<Producto> generarRecomendaciones(Usuario *usuario)
         while (carrito != nullptr)
         {
             int id = std::stoi(carrito->dato);
-            puntuaciones[id] += 8.0;
+            puntuaciones[id] += 20.0;
             carrito = carrito->siguiente;
         }
     }
@@ -543,7 +529,7 @@ std::vector<Producto> generarRecomendaciones(Usuario *usuario)
         while (deseos != nullptr)
         {
             int id = std::stoi(deseos->dato);
-            puntuaciones[id] += 6.0;
+            puntuaciones[id] += 15.0;
             deseos = deseos->siguiente;
         }
     }
@@ -554,8 +540,84 @@ std::vector<Producto> generarRecomendaciones(Usuario *usuario)
         while (hist != nullptr)
         {
             int id = std::stoi(hist->dato);
-            puntuaciones[id] += 4.0;
+            puntuaciones[id] += 10.0;
             hist = hist->siguiente;
+        }
+    }
+
+    EstadisticasUsuario stats = obtenerEstadisticasUsuario(usuario);
+
+    bool sinInteracciones = puntuaciones.empty();
+    if (sinInteracciones && usuario->preferencias != nullptr)
+    {
+        Nodolista *pref = usuario->preferencias;
+        while (pref != nullptr)
+        {
+            std::vector<Producto> productosCategoria = buscarPorCategoria(catalogoGlobal, pref->dato);
+            for (const auto &prod : productosCategoria)
+            {
+                puntuaciones[prod.id] += 30.0;
+            }
+            pref = pref->siguiente;
+        }
+    }
+
+    for (auto &p : puntuaciones)
+    {
+        int id = p.first;
+        Producto *prod = nullptr;
+
+        for (auto &producto : catalogoGlobal)
+        {
+            if (producto.id == id)
+            {
+                prod = &producto;
+                break;
+            }
+        }
+
+        if (prod)
+        {
+            if (!stats.categoriaFrecuente.empty() &&
+                stats.categoriaFrecuente == prod->categoria)
+            {
+                p.second += 8.0;
+            }
+            if (!stats.marcaFrecuente.empty() &&
+                stats.marcaFrecuente == prod->marca)
+            {
+                p.second += 5.0;
+            }
+            if (usuario->preferencias != nullptr)
+            {
+                Nodolista *pref = usuario->preferencias;
+                while (pref != nullptr)
+                {
+                    if (pref->dato == prod->categoria)
+                    {
+                        p.second += 7.0;
+                        break;
+                    }
+                    pref = pref->siguiente;
+                }
+            }
+        }
+    }
+
+    if (puntuaciones.size() < MAX_RECOMENDACIONES && usuario->preferencias != nullptr)
+    {
+        Nodolista *pref = usuario->preferencias;
+        while (pref != nullptr && puntuaciones.size() < MAX_RECOMENDACIONES)
+        {
+            std::vector<Producto> productosCategoria = buscarPorCategoria(catalogoGlobal, pref->dato);
+            for (const auto &prod : productosCategoria)
+            {
+                if (puntuaciones.find(prod.id) == puntuaciones.end())
+                {
+                    puntuaciones[prod.id] = 25.0;
+                }
+            }
+            pref = pref->siguiente;
         }
     }
 
@@ -567,11 +629,17 @@ std::vector<Producto> generarRecomendaciones(Usuario *usuario)
 
     std::sort(productosPuntuados.begin(), productosPuntuados.end(),
               [](const std::pair<int, double> &a, const std::pair<int, double> &b)
-              { return a.second > b.second; });
+              {
+                  return a.second > b.second;
+              });
 
     std::vector<Producto> recomendados;
+    size_t count = 0;
     for (const auto &p : productosPuntuados)
     {
+        if (count++ >= MAX_RECOMENDACIONES)
+            break;
+
         for (const auto &prod : catalogoGlobal)
         {
             if (prod.id == p.first)
@@ -582,28 +650,29 @@ std::vector<Producto> generarRecomendaciones(Usuario *usuario)
         }
     }
 
-    if (recomendados.size() < 10)
+    if (recomendados.size() < MAX_RECOMENDACIONES)
     {
-        if (usuario->preferencias != nullptr)
+        std::vector<Producto> productosPopulares;
+        for (const auto &prod : catalogoGlobal)
         {
-            Nodolista *pref = usuario->preferencias;
-            while (pref != nullptr && recomendados.size() < 20)
+            if (prod.calidad >= 4)
             {
-                std::vector<Producto> productosCategoria = buscarPorCategoria(catalogoGlobal, pref->dato);
-                for (const auto &prod : productosCategoria)
-                {
-                    if (std::find_if(recomendados.begin(), recomendados.end(),
-                                     [&prod](const Producto &p)
-                                     { return p.id == prod.id; }) == recomendados.end())
-                    {
-                        std::string idStr = std::to_string(prod.id);
-                        if (!existeEnLista(usuario->historial, idStr))
-                        {
-                            recomendados.push_back(prod);
-                        }
-                    }
-                }
-                pref = pref->siguiente;
+                productosPopulares.push_back(prod);
+            }
+        }
+
+        std::random_device rd;
+        std::mt19937 g(rd());
+        std::shuffle(productosPopulares.begin(), productosPopulares.end(), g);
+
+        size_t necesarios = MAX_RECOMENDACIONES - recomendados.size();
+        for (size_t i = 0; i < necesarios && i < productosPopulares.size(); i++)
+        {
+            if (std::find_if(recomendados.begin(), recomendados.end(),
+                             [&](const Producto &p)
+                             { return p.id == productosPopulares[i].id; }) == recomendados.end())
+            {
+                recomendados.push_back(productosPopulares[i]);
             }
         }
     }
@@ -641,7 +710,7 @@ void seleccionarPreferencias(Usuario *usuario)
 
         while (iss >> num)
         {
-            if (num >= 1 && num <= categorias.size())
+            if (num >= 1 && static_cast<size_t>(num) <= categorias.size())
             {
                 std::string categoriaSeleccionada = categorias[num - 1];
                 if (!existeEnLista(usuario->preferencias, categoriaSeleccionada))
@@ -1070,7 +1139,6 @@ void ComandoRegistrarUsuario()
     Usuario nuevo;
     bool cancelado = false;
 
-    // Validar campos
     auto validarCampo = [](const std::string &valor, const std::string &campo) -> bool
     {
         if (valor.empty())
@@ -1202,8 +1270,8 @@ void ComandoRegistrarUsuario()
 
     nuevo.historial = nullptr;
     nuevo.preferencias = nullptr;
-    nuevo.carrito = nullptr;     
-    nuevo.listaDeseos = nullptr; 
+    nuevo.carrito = nullptr;
+    nuevo.listaDeseos = nullptr;
 
     insertar(Usuarios, nuevo);
     seleccionarPreferencias(&nuevo);
