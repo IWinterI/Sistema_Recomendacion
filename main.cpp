@@ -15,9 +15,6 @@
 #include <chrono>
 #include <thread>
 
-//**Estructuras**
-
-// Estructuras de usuario
 struct Nodolista
 {
     std::string dato;
@@ -33,8 +30,8 @@ struct Usuario
     std::string password;
     Nodolista *preferencias;
     Nodolista *historial;
-    Nodolista *carrito;     // Nuevo: Carrito de compras
-    Nodolista *listaDeseos; // Nuevo: Lista de deseos
+    Nodolista *carrito;     
+    Nodolista *listaDeseos; 
 };
 
 struct Nodoarbol
@@ -44,7 +41,6 @@ struct Nodoarbol
     Nodoarbol *derecha;
 };
 
-// Estructura de productos
 struct Producto
 {
     std::string descripcion;
@@ -54,12 +50,10 @@ struct Producto
     int calidad;
     std::string categoria;
 
-    // Constructor con validaci�n de calidad
     Producto(std::string desc = "", int id = 0, std::string marca = "",
              double precio = 0.0, int calidad = 1, std::string categoria = "")
         : descripcion(desc), id(id), marca(marca), precio(precio), categoria(categoria)
     {
-        // Validar y ajustar la calidad
         if (calidad < 1)
             this->calidad = 1;
         else if (calidad > 5)
@@ -68,7 +62,6 @@ struct Producto
             this->calidad = calidad;
     }
 
-    // Funci�n para mostrar informaci�n del producto
     void mostrar() const
     {
         std::cout << "ID: " << id
@@ -81,23 +74,15 @@ struct Producto
     }
 };
 
-/* Declaraciones globales */
-
-// Registros de usuarios
 Nodoarbol *Usuarios = nullptr;
 
-// Cat�logo global de productos
 std::vector<Producto> catalogoGlobal;
 
-// Caracteres para ids
 const std::string CARACTERES_VALIDOS =
     "1234567890"
     "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
     "abcdefghijklmnopqrstuvwxyz";
 
-//**Funciones principales de la gestion de usuarios**
-
-// Imprimir centrado
 void printCentered(const std::string &text, int width = 50)
 {
     int padding = (width - static_cast<int>(text.length())) / 2;
@@ -106,7 +91,6 @@ void printCentered(const std::string &text, int width = 50)
     std::cout << text << std::endl;
 }
 
-// Funciones para arbol de busqueda
 Nodoarbol *crearNodo(Usuario valor)
 {
     Nodoarbol *nuevo = new Nodoarbol;
@@ -158,7 +142,6 @@ bool verificarPassword(Nodoarbol *nodo, const std::string &password)
     return nodo && nodo->dato.password == password;
 }
 
-// Generar id de los usuarios
 std::string generarID()
 {
     std::random_device rd;
@@ -173,7 +156,6 @@ std::string generarID()
     return id;
 }
 
-//**Funciones de utilidades**
 void clearScreen()
 {
 #ifdef _WIN32
@@ -229,7 +211,6 @@ std::string leertexto()
     return entrada.substr(inicio, fin - inicio + 1);
 }
 
-//**Funciones para productos**
 std::vector<Producto> generarCatalogo()
 {
     return {
@@ -294,7 +275,6 @@ std::string aMinusculas(const std::string &texto)
     return resultado;
 }
 
-//**Funciones para listas enlazadas**
 void insertarLista(Nodolista *&lista, const std::string &valor)
 {
     Nodolista *nuevo = new Nodolista;
@@ -330,7 +310,6 @@ bool existeEnLista(Nodolista *lista, const std::string &valor)
     return false;
 }
 
-//**Funciones de b�squeda**
 std::vector<Producto> buscarPorCategoria(const std::vector<Producto> &productos, const std::string &categoriaBuscada)
 {
     std::vector<Producto> resultados;
@@ -390,7 +369,6 @@ std::vector<Producto> buscarPorDescripcion(const std::vector<Producto> &producto
     return resultados;
 }
 
-//**Funciones para el sistema de recomendaci�n**
 std::vector<std::string> obtenerCategoriasUnicas()
 {
     std::set<std::string> categoriasSet;
@@ -438,7 +416,6 @@ void verDetallesProducto(int idProducto, Usuario *usuario)
                 insertarLista(usuario->historial, idStr);
             }
 
-            // Opciones adicionales
             seccion("Opciones Adicionales");
             std::cout << "1. Agregar al carrito\n";
             std::cout << "2. Agregar a lista de deseos\n";
@@ -469,7 +446,6 @@ void verDetallesProducto(int idProducto, Usuario *usuario)
     pausarConsola();
 }
 
-// Funci�n para obtener estad�sticas de usuario
 struct EstadisticasUsuario
 {
     std::string categoriaFrecuente;
@@ -501,7 +477,6 @@ EstadisticasUsuario obtenerEstadisticasUsuario(Usuario *usuario)
         actual = actual->siguiente;
     }
 
-    // Obtener categor�a m�s frecuente
     if (!conteoCategorias.empty())
     {
         stats.categoriaFrecuente = std::max_element(
@@ -511,7 +486,6 @@ EstadisticasUsuario obtenerEstadisticasUsuario(Usuario *usuario)
                                        ->first;
     }
 
-    // Obtener marca m�s frecuente
     if (!conteoMarcas.empty())
     {
         stats.marcaFrecuente = std::max_element(
@@ -521,7 +495,6 @@ EstadisticasUsuario obtenerEstadisticasUsuario(Usuario *usuario)
                                    ->first;
     }
 
-    // Obtener calidad m�s frecuente
     if (!conteoCalidades.empty())
     {
         stats.calidadFrecuente = std::max_element(
@@ -534,13 +507,11 @@ EstadisticasUsuario obtenerEstadisticasUsuario(Usuario *usuario)
     return stats;
 }
 
-//**Funci�n mejorada para generar recomendaciones**
 std::vector<Producto> generarRecomendaciones(Usuario *usuario)
 {
-    // Mapa para almacenar las puntuaciones de los productos
+
     std::map<int, double> puntuaciones;
 
-    // 1. Preferencias del usuario (mayor peso: 10 puntos por categor�a coincidente)
     if (usuario->preferencias != nullptr)
     {
         Nodolista *pref = usuario->preferencias;
@@ -555,7 +526,6 @@ std::vector<Producto> generarRecomendaciones(Usuario *usuario)
         }
     }
 
-    // 2. Productos comprados (en carrito) - 8 puntos
     if (usuario->carrito != nullptr)
     {
         Nodolista *carrito = usuario->carrito;
@@ -567,7 +537,6 @@ std::vector<Producto> generarRecomendaciones(Usuario *usuario)
         }
     }
 
-    // 3. Productos en lista de deseos - 6 puntos
     if (usuario->listaDeseos != nullptr)
     {
         Nodolista *deseos = usuario->listaDeseos;
@@ -579,7 +548,6 @@ std::vector<Producto> generarRecomendaciones(Usuario *usuario)
         }
     }
 
-    // 4. Productos vistos (historial) - 4 puntos
     if (usuario->historial != nullptr)
     {
         Nodolista *hist = usuario->historial;
@@ -591,19 +559,16 @@ std::vector<Producto> generarRecomendaciones(Usuario *usuario)
         }
     }
 
-    // Crear vector de productos con puntuaci�n
     std::vector<std::pair<int, double>> productosPuntuados;
     for (const auto &p : puntuaciones)
     {
         productosPuntuados.push_back(p);
     }
 
-    // Ordenar por puntuaci�n descendente
     std::sort(productosPuntuados.begin(), productosPuntuados.end(),
               [](const std::pair<int, double> &a, const std::pair<int, double> &b)
               { return a.second > b.second; });
 
-    // Obtener los productos recomendados
     std::vector<Producto> recomendados;
     for (const auto &p : productosPuntuados)
     {
@@ -617,7 +582,6 @@ std::vector<Producto> generarRecomendaciones(Usuario *usuario)
         }
     }
 
-    // A�adir productos no vistos de categor�as preferidas (si no hay suficientes recomendaciones)
     if (recomendados.size() < 10)
     {
         if (usuario->preferencias != nullptr)
@@ -628,12 +592,10 @@ std::vector<Producto> generarRecomendaciones(Usuario *usuario)
                 std::vector<Producto> productosCategoria = buscarPorCategoria(catalogoGlobal, pref->dato);
                 for (const auto &prod : productosCategoria)
                 {
-                    // Solo a�adir si no est� ya en recomendados
                     if (std::find_if(recomendados.begin(), recomendados.end(),
                                      [&prod](const Producto &p)
                                      { return p.id == prod.id; }) == recomendados.end())
                     {
-                        // Solo a�adir si no est� en el historial
                         std::string idStr = std::to_string(prod.id);
                         if (!existeEnLista(usuario->historial, idStr))
                         {
@@ -649,7 +611,6 @@ std::vector<Producto> generarRecomendaciones(Usuario *usuario)
     return recomendados;
 }
 
-// Funcion para seleccionar las preferencias del usuario
 void seleccionarPreferencias(Usuario *usuario)
 {
     clearScreen();
@@ -672,12 +633,10 @@ void seleccionarPreferencias(Usuario *usuario)
         std::cout << "Ingrese los numeros de las categorias que le interesan (ej: 1 3 5): ";
         std::getline(std::cin, entrada);
 
-        // Procesar entrada
         std::istringstream iss(entrada);
         int num;
         bool invalido = false;
 
-        // Limpiar preferencias anteriores (opcional)
         usuario->preferencias = nullptr;
 
         while (iss >> num)
@@ -717,7 +676,6 @@ void seleccionarPreferencias(Usuario *usuario)
     }
 }
 
-// Funciones para carrito y lista de deseos
 void verCarrito(Usuario *usuario)
 {
     clearScreen();
@@ -765,7 +723,6 @@ void verCarrito(Usuario *usuario)
 
     if (opcion == 1)
     {
-        // Vaciar carrito
         while (usuario->carrito != nullptr)
         {
             Nodolista *temp = usuario->carrito;
@@ -778,7 +735,6 @@ void verCarrito(Usuario *usuario)
     }
     else if (opcion == 2)
     {
-        // Vaciar carrito
         while (usuario->carrito != nullptr)
         {
             Nodolista *temp = usuario->carrito;
@@ -832,7 +788,6 @@ void verListaDeseos(Usuario *usuario)
 
     if (opcion == 1)
     {
-        // Vaciar lista
         while (usuario->listaDeseos != nullptr)
         {
             Nodolista *temp = usuario->listaDeseos;
@@ -845,7 +800,6 @@ void verListaDeseos(Usuario *usuario)
     }
 }
 
-//**Men� de usuario mejorado**
 void mostrarMenuUsuario(Usuario *usuario)
 {
     int opcion;
@@ -912,7 +866,6 @@ void mostrarMenuUsuario(Usuario *usuario)
                 {
                     std::cout << "ID: " << prod.id << " - " << prod.descripcion;
 
-                    // Mostrar por qu� fue recomendado
                     std::string razon = "";
                     std::string idStr = std::to_string(prod.id);
 
@@ -1090,7 +1043,6 @@ void mostrarMenuUsuario(Usuario *usuario)
     }
 }
 
-//**Comandos de usuario**
 void imprimirUsuario(Usuario &usuario)
 {
     std::cout << std::string(50, '=') << std::endl;
@@ -1133,7 +1085,6 @@ void ComandoRegistrarUsuario()
 
     std::cout << std::string(50, '=') << std::endl;
 
-    // Nombre
     do
     {
         std::cout << std::string(50, '-') << std::endl;
@@ -1146,7 +1097,6 @@ void ComandoRegistrarUsuario()
     std::cout << "Nombre registrado: " << nuevo.nombre << std::endl;
     std::cout << std::string(50, '=') << std::endl;
 
-    // Apellido
     do
     {
         std::cout << std::string(50, '-') << std::endl;
@@ -1159,7 +1109,6 @@ void ComandoRegistrarUsuario()
     std::cout << "Apellido registrado: " << nuevo.apellido << std::endl;
     std::cout << std::string(50, '=') << std::endl;
 
-    // Usuario
     do
     {
         std::cout << std::string(50, '-') << std::endl;
@@ -1216,7 +1165,6 @@ void ComandoRegistrarUsuario()
     std::cout << "Usuario registrado: " << nuevo.usuario << std::endl;
     std::cout << std::string(50, '=') << std::endl;
 
-    // Contrase�a
     do
     {
         std::cout << std::string(50, '-') << std::endl;
@@ -1235,7 +1183,6 @@ void ComandoRegistrarUsuario()
     std::cout << "Password registrada: " << nuevo.password << std::endl;
     std::cout << std::string(50, '=') << std::endl;
 
-    // Generar id
     nuevo.id = generarID();
 
     std::cout << std::string(50, '-') << std::endl;
@@ -1255,14 +1202,12 @@ void ComandoRegistrarUsuario()
 
     nuevo.historial = nullptr;
     nuevo.preferencias = nullptr;
-    nuevo.carrito = nullptr;     // Inicializar carrito
-    nuevo.listaDeseos = nullptr; // Inicializar lista de deseos
+    nuevo.carrito = nullptr;     
+    nuevo.listaDeseos = nullptr; 
 
-    // Guardar usuario
     insertar(Usuarios, nuevo);
     seleccionarPreferencias(&nuevo);
 
-    // Mostrar resultado
     clearScreen();
     imprimirUsuario(nuevo);
     pausarConsola();
@@ -1342,7 +1287,6 @@ Usuario *ComandoIngresarUsuario()
     } while (true);
 }
 
-//**Men� principal**
 void Mainmenu()
 {
     int opcion;
