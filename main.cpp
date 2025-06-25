@@ -75,8 +75,9 @@ struct Producto
 
 struct Recomendaciones
 {
-    std::vector<Producto> porCategoria;
-    std::vector<Producto> porMarca;
+    std::vector<Producto> porMarcasPreferidas;
+    std::vector<Producto> porOtrasMarcasFrecuentes;
+    std::vector<Producto> porCategoriaFrecuente;
     std::vector<Producto> porCalidad;
 };
 
@@ -435,13 +436,13 @@ void verDetallesProducto(int idProducto, Usuario *usuario)
             if (opcion == 1)
             {
                 insertarLista(usuario->carrito, idStr);
-                std::cout << "\nProducto agregado al carrito\n";
+                std::cout << "\nProducto agregado al carrito!\n";
                 pausarConsola();
             }
             else if (opcion == 2)
             {
                 insertarLista(usuario->listaDeseos, idStr);
-                std::cout << "\nProducto agregado a lista de deseos\n";
+                std::cout << "\nProducto agregado a lista de deseos!\n";
                 pausarConsola();
             }
 
@@ -455,7 +456,7 @@ void verDetallesProducto(int idProducto, Usuario *usuario)
 struct EstadisticasUsuario
 {
     std::string categoriaFrecuente;
-    std::string marcaFrecuente;
+    std::vector<std::string> marcasFrecuentes;
     int calidadFrecuente;
 };
 
@@ -494,11 +495,17 @@ EstadisticasUsuario obtenerEstadisticasUsuario(Usuario *usuario)
 
     if (!conteoMarcas.empty())
     {
-        stats.marcaFrecuente = std::max_element(
-                                   conteoMarcas.begin(), conteoMarcas.end(),
-                                   [](const auto &a, const auto &b)
-                                   { return a.second < b.second; })
-                                   ->first;
+
+        std::vector<std::pair<std::string, int>> marcasOrdenadas(
+            conteoMarcas.begin(), conteoMarcas.end());
+        std::sort(marcasOrdenadas.begin(), marcasOrdenadas.end(),
+                  [](const auto &a, const auto &b)
+                  { return a.second > b.second; });
+
+        for (int i = 0; i < std::min(2, (int)marcasOrdenadas.size()); i++)
+        {
+            stats.marcasFrecuentes.push_back(marcasOrdenadas[i].first);
+        }
     }
 
     if (!conteoCalidades.empty())
@@ -518,7 +525,7 @@ Recomendaciones generarRecomendaciones(Usuario *usuario)
     Recomendaciones rec;
     std::set<int> productosExcluidos;
 
-    // Recopilar IDs de productos en historial, carrito y lista de deseos
+
     auto agregarIDs = [&](Nodolista *lista)
     {
         Nodolista *actual = lista;
@@ -531,7 +538,7 @@ Recomendaciones generarRecomendaciones(Usuario *usuario)
             }
             catch (...)
             {
-                // Ignorar errores de conversión
+
             }
             actual = actual->siguiente;
         }
@@ -541,7 +548,7 @@ Recomendaciones generarRecomendaciones(Usuario *usuario)
     agregarIDs(usuario->carrito);
     agregarIDs(usuario->listaDeseos);
 
-    // Recomendaciones basadas en categorías preferidas
+
     if (usuario->preferencias != nullptr)
     {
         std::vector<Producto> candidatos;
@@ -550,8 +557,8 @@ Recomendaciones generarRecomendaciones(Usuario *usuario)
         {
             for (const auto &prod : catalogoGlobal)
             {
-                // Solo agregar productos de categorías preferidas no excluidos
-                if (prod.categoria == pref->dato &&
+
+                if (prod.marca == pref->dato &&
                     productosExcluidos.find(prod.id) == productosExcluidos.end())
                 {
                     candidatos.push_back(prod);
@@ -560,7 +567,7 @@ Recomendaciones generarRecomendaciones(Usuario *usuario)
             pref = pref->siguiente;
         }
 
-        // Eliminar duplicados
+
         std::sort(candidatos.begin(), candidatos.end(),
                   [](const Producto &a, const Producto &b)
                   { return a.id < b.id; });
@@ -569,7 +576,7 @@ Recomendaciones generarRecomendaciones(Usuario *usuario)
                                 { return a.id == b.id; });
         candidatos.erase(last, candidatos.end());
 
-        // Ordenar por calidad (mayor primero) y precio (menor primero)
+
         std::sort(candidatos.begin(), candidatos.end(),
                   [](const Producto &a, const Producto &b)
                   {
@@ -578,27 +585,70 @@ Recomendaciones generarRecomendaciones(Usuario *usuario)
                       return a.precio < b.precio;
                   });
 
-        // Asignar TODOS los productos sin límite
-        rec.porCategoria = candidatos;
+
+        rec.porMarcasPreferidas = candidatos;
     }
 
-    // Recomendaciones basadas en historial (si existe)
+
     EstadisticasUsuario stats = obtenerEstadisticasUsuario(usuario);
 
-    // Recomendaciones por marca
-    if (!stats.marcaFrecuente.empty())
+
+    if (!stats.marcasFrecuentes.empty())
+    {
+
+        std::vector<std::string> marcasFrecuentesFiltradas;
+        for (const auto &marca : stats.marcasFrecuentes)
+        {
+            if (!existeEnLista(usuario->preferencias, marca))
+            {
+                marcasFrecuentesFiltradas.push_back(marca);
+            }
+        }
+
+
+        size_t numMarcas = std::min<size_t>(2, marcasFrecuentesFiltradas.size());
+        for (size_t i = 0; i < numMarcas; i++)
+        {
+            std::vector<Producto> candidatos;
+            for (const auto &prod : catalogoGlobal)
+            {
+                if (prod.marca == marcasFrecuentesFiltradas[i] &&
+                    productosExcluidos.find(prod.id) == productosExcluidos.end())
+                {
+                    candidatos.push_back(prod);
+                }
+            }
+
+
+            std::sort(candidatos.begin(), candidatos.end(),
+                      [](const Producto &a, const Producto &b)
+                      {
+                          if (a.calidad != b.calidad)
+                              return a.calidad > b.calidad;
+                          return a.precio < b.precio;
+                      });
+
+            rec.porOtrasMarcasFrecuentes.insert(
+                rec.porOtrasMarcasFrecuentes.end(),
+                candidatos.begin(),
+                candidatos.end());
+        }
+    }
+
+
+    if (!stats.categoriaFrecuente.empty())
     {
         std::vector<Producto> candidatos;
         for (const auto &prod : catalogoGlobal)
         {
-            if (prod.marca == stats.marcaFrecuente &&
+            if (prod.categoria == stats.categoriaFrecuente &&
                 productosExcluidos.find(prod.id) == productosExcluidos.end())
             {
                 candidatos.push_back(prod);
             }
         }
 
-        // Ordenar y asignar TODOS los productos
+
         std::sort(candidatos.begin(), candidatos.end(),
                   [](const Producto &a, const Producto &b)
                   {
@@ -607,10 +657,10 @@ Recomendaciones generarRecomendaciones(Usuario *usuario)
                       return a.precio < b.precio;
                   });
 
-        rec.porMarca = candidatos;
+        rec.porCategoriaFrecuente = candidatos;
     }
 
-    // Recomendaciones por calidad
+
     if (stats.calidadFrecuente > 0)
     {
         std::vector<Producto> candidatos;
@@ -623,7 +673,7 @@ Recomendaciones generarRecomendaciones(Usuario *usuario)
             }
         }
 
-        // Ordenar y asignar TODOS los productos
+
         std::sort(candidatos.begin(), candidatos.end(),
                   [](const Producto &a, const Producto &b)
                   { return a.precio < b.precio; });
@@ -637,23 +687,28 @@ Recomendaciones generarRecomendaciones(Usuario *usuario)
 void seleccionarPreferencias(Usuario *usuario)
 {
     clearScreen();
-    encabezado("Seleccion de Preferencias");
+    encabezado("Seleccion de Marcas Preferidas");
 
-    std::vector<std::string> categorias = obtenerCategoriasUnicas();
+
+    std::vector<std::string> marcas = {
+        "Apple", "Samsung", "Sony", "ASUS", "OnePlus", "Google",
+        "Microsoft", "Lenovo", "Acer", "HP", "Dell", "Xiaomi",
+        "Motorola", "Bose", "Anker", "Sennheiser", "Sonos"};
+
     std::string entrada;
 
     while (true)
     {
         int i = 1;
-
-        for (auto var : categorias)
+        seccion("Marcas Disponibles");
+        for (auto var : marcas)
         {
-            std::cout << i << ".-" << var << std::endl;
+            std::cout << i << ".- " << var << std::endl;
             i++;
         }
 
         seccion("Instrucciones");
-        std::cout << "Ingrese los numeros de las categorias que le interesan (ej: 1 3 5): ";
+        std::cout << "Ingrese los numeros de las marcas que le interesan (ej: 1 3 5): ";
         std::getline(std::cin, entrada);
 
         std::istringstream iss(entrada);
@@ -664,12 +719,12 @@ void seleccionarPreferencias(Usuario *usuario)
 
         while (iss >> num)
         {
-            if (num >= 1 && static_cast<size_t>(num) <= categorias.size())
+            if (num >= 1 && static_cast<size_t>(num) <= marcas.size())
             {
-                std::string categoriaSeleccionada = categorias[num - 1];
-                if (!existeEnLista(usuario->preferencias, categoriaSeleccionada))
+                std::string marcaSeleccionada = marcas[num - 1];
+                if (!existeEnLista(usuario->preferencias, marcaSeleccionada))
                 {
-                    insertarLista(usuario->preferencias, categoriaSeleccionada);
+                    insertarLista(usuario->preferencias, marcaSeleccionada);
                 }
             }
             else
@@ -680,7 +735,7 @@ void seleccionarPreferencias(Usuario *usuario)
 
         if (!invalido && usuario->preferencias != nullptr)
         {
-            seccion("Preferencias Guardadas");
+            seccion("Marcas Preferidas Guardadas");
             Nodolista *temp = usuario->preferencias;
             while (temp != nullptr)
             {
@@ -753,7 +808,7 @@ void verCarrito(Usuario *usuario)
             delete temp;
         }
         seccion("Compra Realizada");
-        std::cout << "Gracias por su compra\n";
+        std::cout << "¡Gracias por su compra!\n";
         pausarConsola();
     }
     else if (opcion == 2)
@@ -913,30 +968,43 @@ void mostrarMenuUsuario(Usuario *usuario)
 
             Recomendaciones rec = generarRecomendaciones(usuario);
 
-            if (rec.porCategoria.empty() && rec.porMarca.empty() && rec.porCalidad.empty())
+            if (rec.porMarcasPreferidas.empty() &&
+                rec.porOtrasMarcasFrecuentes.empty() &&
+                rec.porCategoriaFrecuente.empty() &&
+                rec.porCalidad.empty())
             {
                 seccion("Sin Recomendaciones");
                 std::cout << "No hay recomendaciones disponibles. Vea algunos productos primero.\n";
             }
             else
             {
-                if (!rec.porCategoria.empty())
+                if (!rec.porMarcasPreferidas.empty())
                 {
-                    seccion("Recomendados por categoria");
-                    for (const auto &prod : rec.porCategoria)
-                    {
-                        std::cout << "ID: " << prod.id << " - " << prod.descripcion;
-                        std::cout << " (Categoria: " << prod.categoria << ")\n";
-                    }
-                }
-
-                if (!rec.porMarca.empty())
-                {
-                    seccion("Recomendados por marca");
-                    for (const auto &prod : rec.porMarca)
+                    seccion("Recomendados por tus marcas preferidas");
+                    for (const auto &prod : rec.porMarcasPreferidas)
                     {
                         std::cout << "ID: " << prod.id << " - " << prod.descripcion;
                         std::cout << " (Marca: " << prod.marca << ")\n";
+                    }
+                }
+
+                if (!rec.porOtrasMarcasFrecuentes.empty())
+                {
+                    seccion("Recomendados por otras marcas frecuentes");
+                    for (const auto &prod : rec.porOtrasMarcasFrecuentes)
+                    {
+                        std::cout << "ID: " << prod.id << " - " << prod.descripcion;
+                        std::cout << " (Marca: " << prod.marca << ")\n";
+                    }
+                }
+
+                if (!rec.porCategoriaFrecuente.empty())
+                {
+                    seccion("Recomendados por tu categoria mas visualizada");
+                    for (const auto &prod : rec.porCategoriaFrecuente)
+                    {
+                        std::cout << "ID: " << prod.id << " - " << prod.descripcion;
+                        std::cout << " (Categoria: " << prod.categoria << ")\n";
                     }
                 }
 
@@ -951,7 +1019,10 @@ void mostrarMenuUsuario(Usuario *usuario)
                 }
             }
 
-            if (!rec.porCategoria.empty() || !rec.porMarca.empty() || !rec.porCalidad.empty())
+            if (!rec.porMarcasPreferidas.empty() ||
+                !rec.porOtrasMarcasFrecuentes.empty() ||
+                !rec.porCategoriaFrecuente.empty() ||
+                !rec.porCalidad.empty())
             {
                 seccion("Detalles de Producto");
                 std::cout << "Ingrese el ID del producto para ver detalles (0 para volver): ";
@@ -1037,7 +1108,7 @@ void mostrarMenuUsuario(Usuario *usuario)
                 case 4:
                 {
                     seccion("Busqueda por Descripcion");
-                    std::cout << "Ingrese palabra clave (ej: PlayStation, laptop, Galaxy): ";
+                    std::cout << "Ingrese palabra clave (ej: telefono, laptop, auriculares): ";
                     std::string clave;
                     std::getline(std::cin, clave);
                     resultados = buscarPorDescripcion(catalogoGlobal, clave);
@@ -1268,10 +1339,10 @@ void ComandoRegistrarUsuario()
     nuevo.carrito = nullptr;
     nuevo.listaDeseos = nullptr;
 
-    // Primero seleccionar preferencias
+
     seleccionarPreferencias(&nuevo);
 
-    // Luego insertar en el árbol con las preferencias ya asignadas
+
     insertar(Usuarios, nuevo);
 
     clearScreen();
