@@ -1,5 +1,4 @@
 #include <iostream>
-#include <iostream>
 #include <vector>
 #include <string>
 #include <cctype>
@@ -12,10 +11,9 @@
 #include <sstream>
 #include <map>
 #include <cmath>
+#include <chrono>
+#include <thread>
 
-//**Estructuras**
-
-//Estructuras de usuario
 struct Nodolista
 {
     std::string dato;
@@ -31,6 +29,8 @@ struct Usuario
     std::string password;
     Nodolista *preferencias;
     Nodolista *historial;
+    Nodolista *carrito;
+    Nodolista *listaDeseos;
 };
 
 struct Nodoarbol
@@ -40,8 +40,8 @@ struct Nodoarbol
     Nodoarbol *derecha;
 };
 
-//Estructura de productos
-struct Producto {
+struct Producto
+{
     std::string descripcion;
     int id;
     std::string marca;
@@ -49,19 +49,20 @@ struct Producto {
     int calidad;
     std::string categoria;
 
-    // Constructor con validación de calidad
     Producto(std::string desc = "", int id = 0, std::string marca = "",
              double precio = 0.0, int calidad = 1, std::string categoria = "")
         : descripcion(desc), id(id), marca(marca), precio(precio), categoria(categoria)
     {
-        // Validar y ajustar la calidad
-        if (calidad < 1) this->calidad = 1;
-        else if (calidad > 5) this->calidad = 5;
-        else this->calidad = calidad;
+        if (calidad < 1)
+            this->calidad = 1;
+        else if (calidad > 5)
+            this->calidad = 5;
+        else
+            this->calidad = calidad;
     }
 
-    // Función para mostrar información del producto
-    void mostrar() const {
+    void mostrar() const
+    {
         std::cout << "ID: " << id
                   << "\nProducto: " << descripcion
                   << "\nCategoria: " << categoria
@@ -72,24 +73,22 @@ struct Producto {
     }
 };
 
-/* Declaraciones globales */
+struct Recomendaciones
+{
+    std::vector<Producto> porCategoria;
+    std::vector<Producto> porMarca;
+    std::vector<Producto> porCalidad;
+};
 
-// Registros de usuarios
 Nodoarbol *Usuarios = nullptr;
 
-// Catálogo global de productos
 std::vector<Producto> catalogoGlobal;
 
-// Caracteres para ids
 const std::string CARACTERES_VALIDOS =
     "1234567890"
     "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-    "abcdefghijklmnopqrstuvwxyz"
-    "!#$%&/()=?Âˇ',.-;:_";
+    "abcdefghijklmnopqrstuvwxyz";
 
-//**Funciones principales de la gestion de usuarios**
-
-// Imprimir centrado
 void printCentered(const std::string &text, int width = 50)
 {
     int padding = (width - static_cast<int>(text.length())) / 2;
@@ -98,7 +97,6 @@ void printCentered(const std::string &text, int width = 50)
     std::cout << text << std::endl;
 }
 
-// Funciones para arbol de busqueda
 Nodoarbol *crearNodo(Usuario valor)
 {
     Nodoarbol *nuevo = new Nodoarbol;
@@ -150,7 +148,6 @@ bool verificarPassword(Nodoarbol *nodo, const std::string &password)
     return nodo && nodo->dato.password == password;
 }
 
-// Generar id de los usuarios
 std::string generarID()
 {
     std::random_device rd;
@@ -165,7 +162,6 @@ std::string generarID()
     return id;
 }
 
-//**Funciones de utilidades**
 void clearScreen()
 {
 #ifdef _WIN32
@@ -197,6 +193,13 @@ void encabezado(const std::string &titulo)
     std::cout << std::string(50, '=') << std::endl;
 }
 
+void seccion(const std::string &titulo)
+{
+    std::cout << std::string(50, '-') << std::endl;
+    printCentered(titulo);
+    std::cout << std::string(50, '-') << std::endl;
+}
+
 std::string leertexto()
 {
     std::string entrada;
@@ -214,8 +217,8 @@ std::string leertexto()
     return entrada.substr(inicio, fin - inicio + 1);
 }
 
-//**Funciones para productos**
-std::vector<Producto> generarCatalogo() {
+std::vector<Producto> generarCatalogo()
+{
     return {
         {"iPhone 15 Pro", 1001, "Apple", 999.99, 5, "Smartphones"},
         {"Galaxy S24 Ultra", 1002, "Samsung", 1199.99, 5, "Smartphones"},
@@ -266,38 +269,46 @@ std::vector<Producto> generarCatalogo() {
         {"EOS R6 Mark II", 7002, "Canon", 2499.00, 5, "Fotografia"},
         {"Z9", 7003, "Nikon", 5499.95, 5, "Fotografia"},
         {"GoPro Hero12 Black", 7004, "GoPro", 449.99, 4, "Fotografia"},
-        {"DJI Mavic 3 Pro", 7005, "DJI", 2199.00, 5, "Fotografia"}
-    };
+        {"DJI Mavic 3 Pro", 7005, "DJI", 2199.00, 5, "Fotografia"}};
 }
 
-std::string aMinusculas(const std::string& texto) {
+std::string aMinusculas(const std::string &texto)
+{
     std::string resultado = texto;
     std::transform(resultado.begin(), resultado.end(), resultado.begin(),
-                   [](unsigned char c){ return std::tolower(c); });
+                   [](unsigned char c)
+                   { return std::tolower(c); });
     return resultado;
 }
 
-//**Funciones para listas enlazadas**
-void insertarLista(Nodolista*& lista, const std::string& valor) {
-    Nodolista* nuevo = new Nodolista;
+void insertarLista(Nodolista *&lista, const std::string &valor)
+{
+    Nodolista *nuevo = new Nodolista;
     nuevo->dato = valor;
     nuevo->siguiente = nullptr;
 
-    if (lista == nullptr) {
+    if (lista == nullptr)
+    {
         lista = nuevo;
-    } else {
-        Nodolista* actual = lista;
-        while (actual->siguiente != nullptr) {
+    }
+    else
+    {
+        Nodolista *actual = lista;
+        while (actual->siguiente != nullptr)
+        {
             actual = actual->siguiente;
         }
         actual->siguiente = nuevo;
     }
 }
 
-bool existeEnLista(Nodolista* lista, const std::string& valor) {
-    Nodolista* actual = lista;
-    while (actual != nullptr) {
-        if (actual->dato == valor) {
+bool existeEnLista(Nodolista *lista, const std::string &valor)
+{
+    Nodolista *actual = lista;
+    while (actual != nullptr)
+    {
+        if (actual->dato == valor)
+        {
             return true;
         }
         actual = actual->siguiente;
@@ -305,96 +316,135 @@ bool existeEnLista(Nodolista* lista, const std::string& valor) {
     return false;
 }
 
-//**Funciones de búsqueda**
-std::vector<Producto> buscarPorCategoria(const std::vector<Producto>& productos,
-                                        const std::string& categoriaBuscada) {
+std::vector<Producto> buscarPorCategoria(const std::vector<Producto> &productos, const std::string &categoriaBuscada)
+{
     std::vector<Producto> resultados;
     std::string categoriaLower = aMinusculas(categoriaBuscada);
 
-    for (const auto& prod : productos) {
-        if (aMinusculas(prod.categoria) == categoriaLower) {
+    for (const auto &prod : productos)
+    {
+        if (aMinusculas(prod.categoria) == categoriaLower)
+        {
             resultados.push_back(prod);
         }
     }
     return resultados;
 }
 
-std::vector<Producto> buscarPorRangoPrecios(const std::vector<Producto>& productos,
-                                           double precioMin, double precioMax) {
+std::vector<Producto> buscarPorRangoPrecios(const std::vector<Producto> &productos, double precioMin, double precioMax)
+{
     std::vector<Producto> resultados;
-    for (const auto& prod : productos) {
-        if (prod.precio >= precioMin && prod.precio <= precioMax) {
+    for (const auto &prod : productos)
+    {
+        if (prod.precio >= precioMin && prod.precio <= precioMax)
+        {
             resultados.push_back(prod);
         }
     }
     return resultados;
 }
 
-std::vector<Producto> buscarPorMarca(const std::vector<Producto>& productos,
-                                    const std::string& marcaBuscada) {
+std::vector<Producto> buscarPorMarca(const std::vector<Producto> &productos, const std::string &marcaBuscada)
+{
     std::vector<Producto> resultados;
     std::string marcaLower = aMinusculas(marcaBuscada);
 
-    for (const auto& prod : productos) {
-        if (aMinusculas(prod.marca) == marcaLower) {
+    for (const auto &prod : productos)
+    {
+        if (aMinusculas(prod.marca) == marcaLower)
+        {
             resultados.push_back(prod);
         }
     }
     return resultados;
 }
 
-std::vector<Producto> buscarPorDescripcion(const std::vector<Producto>& productos,
-                                         const std::string& textoBuscado) {
+std::vector<Producto> buscarPorDescripcion(const std::vector<Producto> &productos, const std::string &textoBuscado)
+{
     std::vector<Producto> resultados;
     std::string textoLower = aMinusculas(textoBuscado);
 
-    for (const auto& prod : productos) {
+    for (const auto &prod : productos)
+    {
         std::string descLower = aMinusculas(prod.descripcion);
-        if (descLower.find(textoLower) != std::string::npos) {
+        if (descLower.find(textoLower) != std::string::npos)
+        {
             resultados.push_back(prod);
         }
     }
     return resultados;
 }
 
-//**Funciones para el sistema de recomendación**
-std::vector<std::string> obtenerCategoriasUnicas() {
+std::vector<std::string> obtenerCategoriasUnicas()
+{
     std::set<std::string> categoriasSet;
-    for (const auto& producto : catalogoGlobal) {
+    for (const auto &producto : catalogoGlobal)
+    {
         categoriasSet.insert(producto.categoria);
     }
     return std::vector<std::string>(categoriasSet.begin(), categoriasSet.end());
 }
 
-std::vector<std::string> obtenerMarcasUnicas() {
+std::vector<std::string> obtenerMarcasUnicas()
+{
     std::set<std::string> marcasSet;
-    for (const auto& producto : catalogoGlobal) {
+    for (const auto &producto : catalogoGlobal)
+    {
         marcasSet.insert(producto.marca);
     }
     return std::vector<std::string>(marcasSet.begin(), marcasSet.end());
 }
 
-void mostrarProductosPorCategoria(const std::string& categoria) {
+void mostrarProductosPorCategoria(const std::string &categoria)
+{
     std::vector<Producto> productos = buscarPorCategoria(catalogoGlobal, categoria);
     std::cout << "\n=== " << categoria << " ===\n";
-    for (const auto& producto : productos) {
+    for (const auto &producto : productos)
+    {
         std::cout << "ID: " << producto.id << " - " << producto.descripcion << "\n";
     }
     std::cout << "------------------------\n";
 }
 
-void verDetallesProducto(int idProducto, Usuario* usuario) {
-    for (const auto& producto : catalogoGlobal) {
-        if (producto.id == idProducto) {
+void verDetallesProducto(int idProducto, Usuario *usuario)
+{
+    for (const auto &producto : catalogoGlobal)
+    {
+        if (producto.id == idProducto)
+        {
             clearScreen();
+            encabezado("Detalles del Producto");
             producto.mostrar();
 
             std::string idStr = std::to_string(idProducto);
-            if (!existeEnLista(usuario->historial, idStr)) {
+            if (!existeEnLista(usuario->historial, idStr))
+            {
                 insertarLista(usuario->historial, idStr);
             }
 
-            pausarConsola();
+            seccion("Opciones Adicionales");
+            std::cout << "1. Agregar al carrito\n";
+            std::cout << "2. Agregar a lista de deseos\n";
+            std::cout << "3. Volver\n";
+            std::cout << "Seleccione una opcion: ";
+
+            int opcion;
+            std::cin >> opcion;
+            std::cin.ignore();
+
+            if (opcion == 1)
+            {
+                insertarLista(usuario->carrito, idStr);
+                std::cout << "\nProducto agregado al carrito\n";
+                pausarConsola();
+            }
+            else if (opcion == 2)
+            {
+                insertarLista(usuario->listaDeseos, idStr);
+                std::cout << "\nProducto agregado a lista de deseos\n";
+                pausarConsola();
+            }
+
             return;
         }
     }
@@ -402,24 +452,28 @@ void verDetallesProducto(int idProducto, Usuario* usuario) {
     pausarConsola();
 }
 
-// Nueva función para obtener estadísticas de usuario
-struct EstadisticasUsuario {
+struct EstadisticasUsuario
+{
     std::string categoriaFrecuente;
     std::string marcaFrecuente;
     int calidadFrecuente;
 };
 
-EstadisticasUsuario obtenerEstadisticasUsuario(Usuario* usuario) {
+EstadisticasUsuario obtenerEstadisticasUsuario(Usuario *usuario)
+{
     EstadisticasUsuario stats;
     std::map<std::string, int> conteoCategorias;
     std::map<std::string, int> conteoMarcas;
     std::map<int, int> conteoCalidades;
 
-    Nodolista* actual = usuario->historial;
-    while (actual != nullptr) {
+    Nodolista *actual = usuario->historial;
+    while (actual != nullptr)
+    {
         int id = std::stoi(actual->dato);
-        for (const auto& producto : catalogoGlobal) {
-            if (producto.id == id) {
+        for (const auto &producto : catalogoGlobal)
+        {
+            if (producto.id == id)
+            {
                 conteoCategorias[producto.categoria]++;
                 conteoMarcas[producto.marca]++;
                 conteoCalidades[producto.calidad]++;
@@ -429,283 +483,633 @@ EstadisticasUsuario obtenerEstadisticasUsuario(Usuario* usuario) {
         actual = actual->siguiente;
     }
 
-    // Obtener categoría más frecuente
-    if (!conteoCategorias.empty()) {
+    if (!conteoCategorias.empty())
+    {
         stats.categoriaFrecuente = std::max_element(
-            conteoCategorias.begin(), conteoCategorias.end(),
-            [](const auto& a, const auto& b) { return a.second < b.second; }
-        )->first;
+                                       conteoCategorias.begin(), conteoCategorias.end(),
+                                       [](const auto &a, const auto &b)
+                                       { return a.second < b.second; })
+                                       ->first;
     }
 
-    // Obtener marca más frecuente
-    if (!conteoMarcas.empty()) {
+    if (!conteoMarcas.empty())
+    {
         stats.marcaFrecuente = std::max_element(
-            conteoMarcas.begin(), conteoMarcas.end(),
-            [](const auto& a, const auto& b) { return a.second < b.second; }
-        )->first;
+                                   conteoMarcas.begin(), conteoMarcas.end(),
+                                   [](const auto &a, const auto &b)
+                                   { return a.second < b.second; })
+                                   ->first;
     }
 
-    // Obtener calidad más frecuente
-    if (!conteoCalidades.empty()) {
+    if (!conteoCalidades.empty())
+    {
         stats.calidadFrecuente = std::max_element(
-            conteoCalidades.begin(), conteoCalidades.end(),
-            [](const auto& a, const auto& b) { return a.second < b.second; }
-        )->first;
+                                     conteoCalidades.begin(), conteoCalidades.end(),
+                                     [](const auto &a, const auto &b)
+                                     { return a.second < b.second; })
+                                     ->first;
     }
 
     return stats;
 }
 
-// Función mejorada para generar recomendaciones
-std::vector<Producto> generarRecomendaciones(Usuario* usuario) {
-    std::vector<Producto> recomendados;
-    EstadisticasUsuario stats = obtenerEstadisticasUsuario(usuario);
+Recomendaciones generarRecomendaciones(Usuario *usuario)
+{
+    Recomendaciones rec;
+    std::set<int> productosExcluidos;
 
-    // Filtrar productos no vistos
-    auto filtrarNoVistos = [usuario](const std::vector<Producto>& productos) {
-        std::vector<Producto> resultado;
-        for (const auto& prod : productos) {
-            std::string idStr = std::to_string(prod.id);
-            if (!existeEnLista(usuario->historial, idStr)) {
-                resultado.push_back(prod);
+    // Recopilar IDs de productos en historial, carrito y lista de deseos
+    auto agregarIDs = [&](Nodolista *lista)
+    {
+        Nodolista *actual = lista;
+        while (actual != nullptr)
+        {
+            try
+            {
+                int id = std::stoi(actual->dato);
+                productosExcluidos.insert(id);
             }
+            catch (...)
+            {
+                // Ignorar errores de conversión
+            }
+            actual = actual->siguiente;
         }
-        return resultado;
     };
 
-    // Recomendar por categoría
-    if (!stats.categoriaFrecuente.empty()) {
-        std::vector<Producto> productosCategoria = buscarPorCategoria(catalogoGlobal, stats.categoriaFrecuente);
-        auto noVistos = filtrarNoVistos(productosCategoria);
-        recomendados.insert(recomendados.end(), noVistos.begin(), noVistos.end());
+    agregarIDs(usuario->historial);
+    agregarIDs(usuario->carrito);
+    agregarIDs(usuario->listaDeseos);
+
+    // Recomendaciones basadas en categorías preferidas
+    if (usuario->preferencias != nullptr)
+    {
+        std::vector<Producto> candidatos;
+        Nodolista *pref = usuario->preferencias;
+        while (pref != nullptr)
+        {
+            for (const auto &prod : catalogoGlobal)
+            {
+                // Solo agregar productos de categorías preferidas no excluidos
+                if (prod.categoria == pref->dato &&
+                    productosExcluidos.find(prod.id) == productosExcluidos.end())
+                {
+                    candidatos.push_back(prod);
+                }
+            }
+            pref = pref->siguiente;
+        }
+
+        // Eliminar duplicados
+        std::sort(candidatos.begin(), candidatos.end(),
+                  [](const Producto &a, const Producto &b)
+                  { return a.id < b.id; });
+        auto last = std::unique(candidatos.begin(), candidatos.end(),
+                                [](const Producto &a, const Producto &b)
+                                { return a.id == b.id; });
+        candidatos.erase(last, candidatos.end());
+
+        // Ordenar por calidad (mayor primero) y precio (menor primero)
+        std::sort(candidatos.begin(), candidatos.end(),
+                  [](const Producto &a, const Producto &b)
+                  {
+                      if (a.calidad != b.calidad)
+                          return a.calidad > b.calidad;
+                      return a.precio < b.precio;
+                  });
+
+        // Asignar TODOS los productos sin límite
+        rec.porCategoria = candidatos;
     }
 
-    // Recomendar por marca
-    if (!stats.marcaFrecuente.empty()) {
-        std::vector<Producto> productosMarca = buscarPorMarca(catalogoGlobal, stats.marcaFrecuente);
-        auto noVistos = filtrarNoVistos(productosMarca);
-        recomendados.insert(recomendados.end(), noVistos.begin(), noVistos.end());
-    }
+    // Recomendaciones basadas en historial (si existe)
+    EstadisticasUsuario stats = obtenerEstadisticasUsuario(usuario);
 
-    // Recomendar por calidad
-    if (stats.calidadFrecuente > 0) {
-        std::vector<Producto> productosCalidad;
-        for (const auto& prod : catalogoGlobal) {
-            if (prod.calidad == stats.calidadFrecuente) {
-                productosCalidad.push_back(prod);
+    // Recomendaciones por marca
+    if (!stats.marcaFrecuente.empty())
+    {
+        std::vector<Producto> candidatos;
+        for (const auto &prod : catalogoGlobal)
+        {
+            if (prod.marca == stats.marcaFrecuente &&
+                productosExcluidos.find(prod.id) == productosExcluidos.end())
+            {
+                candidatos.push_back(prod);
             }
         }
-        auto noVistos = filtrarNoVistos(productosCalidad);
-        recomendados.insert(recomendados.end(), noVistos.begin(), noVistos.end());
+
+        // Ordenar y asignar TODOS los productos
+        std::sort(candidatos.begin(), candidatos.end(),
+                  [](const Producto &a, const Producto &b)
+                  {
+                      if (a.calidad != b.calidad)
+                          return a.calidad > b.calidad;
+                      return a.precio < b.precio;
+                  });
+
+        rec.porMarca = candidatos;
     }
 
-    // Eliminar duplicados
-    std::set<int> idsVistos;
-    std::vector<Producto> unicos;
-    for (const auto& prod : recomendados) {
-        if (idsVistos.find(prod.id) == idsVistos.end()) {
-            idsVistos.insert(prod.id);
-            unicos.push_back(prod);
+    // Recomendaciones por calidad
+    if (stats.calidadFrecuente > 0)
+    {
+        std::vector<Producto> candidatos;
+        for (const auto &prod : catalogoGlobal)
+        {
+            if (prod.calidad == stats.calidadFrecuente &&
+                productosExcluidos.find(prod.id) == productosExcluidos.end())
+            {
+                candidatos.push_back(prod);
+            }
         }
+
+        // Ordenar y asignar TODOS los productos
+        std::sort(candidatos.begin(), candidatos.end(),
+                  [](const Producto &a, const Producto &b)
+                  { return a.precio < b.precio; });
+
+        rec.porCalidad = candidatos;
     }
 
-    return unicos;
+    return rec;
 }
 
-//**Menú de usuario mejorado**
-void mostrarMenuUsuario(Usuario* usuario) {
+void seleccionarPreferencias(Usuario *usuario)
+{
+    clearScreen();
+    encabezado("Seleccion de Preferencias");
+
+    std::vector<std::string> categorias = obtenerCategoriasUnicas();
+    std::string entrada;
+
+    while (true)
+    {
+        int i = 1;
+
+        for (auto var : categorias)
+        {
+            std::cout << i << ".-" << var << std::endl;
+            i++;
+        }
+
+        seccion("Instrucciones");
+        std::cout << "Ingrese los numeros de las categorias que le interesan (ej: 1 3 5): ";
+        std::getline(std::cin, entrada);
+
+        std::istringstream iss(entrada);
+        int num;
+        bool invalido = false;
+
+        usuario->preferencias = nullptr;
+
+        while (iss >> num)
+        {
+            if (num >= 1 && static_cast<size_t>(num) <= categorias.size())
+            {
+                std::string categoriaSeleccionada = categorias[num - 1];
+                if (!existeEnLista(usuario->preferencias, categoriaSeleccionada))
+                {
+                    insertarLista(usuario->preferencias, categoriaSeleccionada);
+                }
+            }
+            else
+            {
+                invalido = true;
+            }
+        }
+
+        if (!invalido && usuario->preferencias != nullptr)
+        {
+            seccion("Preferencias Guardadas");
+            Nodolista *temp = usuario->preferencias;
+            while (temp != nullptr)
+            {
+                std::cout << "- " << temp->dato << "\n";
+                temp = temp->siguiente;
+            }
+            pausarConsola();
+            return;
+        }
+        else
+        {
+            seccion("Error");
+            std::cout << "Entrada invalida. Intente nuevamente.\n";
+            pausarConsola();
+        }
+    }
+}
+
+void verCarrito(Usuario *usuario)
+{
+    clearScreen();
+    encabezado("Carrito de Compras");
+
+    if (usuario->carrito == nullptr)
+    {
+        seccion("Carrito Vacio");
+        std::cout << "No hay productos en el carrito.\n";
+        pausarConsola();
+        return;
+    }
+
+    double total = 0.0;
+    Nodolista *actual = usuario->carrito;
+    while (actual != nullptr)
+    {
+        int id = std::stoi(actual->dato);
+        for (const auto &producto : catalogoGlobal)
+        {
+            if (producto.id == id)
+            {
+                seccion(producto.descripcion);
+                std::cout << "ID: " << producto.id << "\n";
+                std::cout << "Precio: $" << std::fixed << std::setprecision(2) << producto.precio << "\n";
+                total += producto.precio;
+                break;
+            }
+        }
+        actual = actual->siguiente;
+    }
+
+    seccion("Total");
+    std::cout << "Total a pagar: $" << std::fixed << std::setprecision(2) << total << "\n";
+
+    seccion("Opciones");
+    std::cout << "1. Realizar compra\n";
+    std::cout << "2. Vaciar carrito\n";
+    std::cout << "3. Volver\n";
+    std::cout << "Seleccione una opcion: ";
+
+    int opcion;
+    std::cin >> opcion;
+    std::cin.ignore();
+
+    if (opcion == 1)
+    {
+        while (usuario->carrito != nullptr)
+        {
+            Nodolista *temp = usuario->carrito;
+            usuario->carrito = usuario->carrito->siguiente;
+            delete temp;
+        }
+        seccion("Compra Realizada");
+        std::cout << "Gracias por su compra\n";
+        pausarConsola();
+    }
+    else if (opcion == 2)
+    {
+        while (usuario->carrito != nullptr)
+        {
+            Nodolista *temp = usuario->carrito;
+            usuario->carrito = usuario->carrito->siguiente;
+            delete temp;
+        }
+        seccion("Carrito Vaciado");
+        std::cout << "El carrito ha sido vaciado.\n";
+        pausarConsola();
+    }
+}
+
+void verListaDeseos(Usuario *usuario)
+{
+    clearScreen();
+    encabezado("Lista de Deseos");
+
+    if (usuario->listaDeseos == nullptr)
+    {
+        seccion("Lista Vacia");
+        std::cout << "No hay productos en la lista de deseos.\n";
+        pausarConsola();
+        return;
+    }
+
+    Nodolista *actual = usuario->listaDeseos;
+    while (actual != nullptr)
+    {
+        int id = std::stoi(actual->dato);
+        for (const auto &producto : catalogoGlobal)
+        {
+            if (producto.id == id)
+            {
+                seccion(producto.descripcion);
+                std::cout << "ID: " << producto.id << "\n";
+                std::cout << "Precio: $" << std::fixed << std::setprecision(2) << producto.precio << "\n";
+                break;
+            }
+        }
+        actual = actual->siguiente;
+    }
+
+    seccion("Opciones");
+    std::cout << "1. Vaciar lista de deseos\n";
+    std::cout << "2. Volver\n";
+    std::cout << "Seleccione una opcion: ";
+
+    int opcion;
+    std::cin >> opcion;
+    std::cin.ignore();
+
+    if (opcion == 1)
+    {
+        while (usuario->listaDeseos != nullptr)
+        {
+            Nodolista *temp = usuario->listaDeseos;
+            usuario->listaDeseos = usuario->listaDeseos->siguiente;
+            delete temp;
+        }
+        seccion("Lista Vaciada");
+        std::cout << "La lista de deseos ha sido vaciada.\n";
+        pausarConsola();
+    }
+}
+
+void verHistorial(Usuario *usuario)
+{
+    clearScreen();
+    encabezado("Historial de Productos Visualizados");
+
+    if (usuario->historial == nullptr)
+    {
+        seccion("Historial Vacio");
+        std::cout << "No ha visto ningun producto aun.\n";
+        pausarConsola();
+        return;
+    }
+
+    Nodolista *actual = usuario->historial;
+    while (actual != nullptr)
+    {
+        int id = std::stoi(actual->dato);
+        for (const auto &producto : catalogoGlobal)
+        {
+            if (producto.id == id)
+            {
+                seccion(producto.descripcion);
+                std::cout << "ID: " << producto.id << "\n";
+                std::cout << "Categoria: " << producto.categoria << "\n";
+                std::cout << "Marca: " << producto.marca << "\n";
+                std::cout << "Precio: $" << std::fixed << std::setprecision(2) << producto.precio << "\n";
+                break;
+            }
+        }
+        actual = actual->siguiente;
+    }
+
+    pausarConsola();
+}
+
+void mostrarMenuUsuario(Usuario *usuario)
+{
     int opcion;
     bool salir = false;
     std::vector<std::string> categorias = obtenerCategoriasUnicas();
     std::vector<std::string> marcas = obtenerMarcasUnicas();
 
-    while (!salir) {
+    while (!salir)
+    {
         clearScreen();
         encabezado("Bienvenido, " + usuario->nombre);
+
+        seccion("Menu Principal");
         std::cout << "1. Ver catalogo de productos\n";
         std::cout << "2. Ver productos recomendados\n";
         std::cout << "3. Realizar busqueda\n";
-        std::cout << "4. Cerrar sesion\n";
-        std::cout << "------------------------\n";
+        std::cout << "4. Carrito de Compras\n";
+        std::cout << "5. Lista de Deseos\n";
+        std::cout << "6. Ver historial de productos\n";
+        std::cout << "7. Cerrar sesion\n";
+        seccion("Seleccion");
         std::cout << "Seleccione una opcion: ";
         std::cin >> opcion;
         std::cin.ignore();
 
-        switch (opcion) {
-            case 1: {
-                clearScreen();
-                encabezado("Catalogo de Productos");
-                for (const auto& categoria : categorias) {
-                    mostrarProductosPorCategoria(categoria);
+        switch (opcion)
+        {
+        case 1:
+        {
+            clearScreen();
+            encabezado("Catalogo de Productos");
+            for (const auto &categoria : categorias)
+            {
+                mostrarProductosPorCategoria(categoria);
+            }
+
+            seccion("Detalles de Producto");
+            std::cout << "Ingrese el ID del producto para ver detalles (0 para volver): ";
+            int idProducto;
+            std::cin >> idProducto;
+            std::cin.ignore();
+
+            if (idProducto != 0)
+            {
+                verDetallesProducto(idProducto, usuario);
+            }
+            break;
+        }
+        case 2:
+        {
+            clearScreen();
+            encabezado("Productos Recomendados");
+
+            Recomendaciones rec = generarRecomendaciones(usuario);
+
+            if (rec.porCategoria.empty() && rec.porMarca.empty() && rec.porCalidad.empty())
+            {
+                seccion("Sin Recomendaciones");
+                std::cout << "No hay recomendaciones disponibles. Vea algunos productos primero.\n";
+            }
+            else
+            {
+                if (!rec.porCategoria.empty())
+                {
+                    seccion("Recomendados por categoria");
+                    for (const auto &prod : rec.porCategoria)
+                    {
+                        std::cout << "ID: " << prod.id << " - " << prod.descripcion;
+                        std::cout << " (Categoria: " << prod.categoria << ")\n";
+                    }
                 }
 
+                if (!rec.porMarca.empty())
+                {
+                    seccion("Recomendados por marca");
+                    for (const auto &prod : rec.porMarca)
+                    {
+                        std::cout << "ID: " << prod.id << " - " << prod.descripcion;
+                        std::cout << " (Marca: " << prod.marca << ")\n";
+                    }
+                }
+
+                if (!rec.porCalidad.empty())
+                {
+                    seccion("Recomendados por calidad similar");
+                    for (const auto &prod : rec.porCalidad)
+                    {
+                        std::cout << "ID: " << prod.id << " - " << prod.descripcion;
+                        std::cout << " (Calidad: " << std::string(prod.calidad, '*') << ")\n";
+                    }
+                }
+            }
+
+            if (!rec.porCategoria.empty() || !rec.porMarca.empty() || !rec.porCalidad.empty())
+            {
+                seccion("Detalles de Producto");
                 std::cout << "Ingrese el ID del producto para ver detalles (0 para volver): ";
                 int idProducto;
                 std::cin >> idProducto;
                 std::cin.ignore();
 
-                if (idProducto != 0) {
+                if (idProducto != 0)
+                {
                     verDetallesProducto(idProducto, usuario);
                 }
-                break;
             }
-            case 2: {
+            else
+            {
+                pausarConsola();
+            }
+            break;
+        }
+        case 3:
+        {
+            int opcionBusqueda;
+            bool volver = false;
+
+            while (!volver)
+            {
                 clearScreen();
-                encabezado("Productos Recomendados");
-
-                EstadisticasUsuario stats = obtenerEstadisticasUsuario(usuario);
-                std::vector<Producto> recomendaciones = generarRecomendaciones(usuario);
-
-                if (recomendaciones.empty()) {
-                    std::cout << "No hay recomendaciones disponibles. Vea algunos productos primero.\n";
-                } else {
-                    // Mostrar por categoría
-                    if (!stats.categoriaFrecuente.empty()) {
-                        std::cout << "\n--- Por tu categoria favorita: " << stats.categoriaFrecuente << " ---\n";
-                        auto catRec = buscarPorCategoria(recomendaciones, stats.categoriaFrecuente);
-                        for (const auto& prod : catRec) {
-                            std::cout << "ID: " << prod.id << " - " << prod.descripcion << "\n";
-                        }
-                    }
-
-                    // Mostrar por marca
-                    if (!stats.marcaFrecuente.empty()) {
-                        std::cout << "\n--- Por tu marca favorita: " << stats.marcaFrecuente << " ---\n";
-                        auto marcaRec = buscarPorMarca(recomendaciones, stats.marcaFrecuente);
-                        for (const auto& prod : marcaRec) {
-                            std::cout << "ID: " << prod.id << " - " << prod.descripcion << "\n";
-                        }
-                    }
-
-                    // Mostrar por calidad
-                    if (stats.calidadFrecuente > 0) {
-                        std::cout << "\n--- Por tu calidad favorita: " << stats.calidadFrecuente << " estrellas ---\n";
-                        for (const auto& prod : recomendaciones) {
-                            if (prod.calidad == stats.calidadFrecuente) {
-                                std::cout << "ID: " << prod.id << " - " << prod.descripcion << "\n";
-                            }
-                        }
-                    }
-                }
-
-                std::cout << "\nIngrese el ID del producto para ver detalles (0 para volver): ";
-                int idProducto;
-                std::cin >> idProducto;
+                encabezado("Buscar Productos");
+                seccion("Opciones de Busqueda");
+                std::cout << "1. Buscar por categoria\n";
+                std::cout << "2. Buscar por rango de precios\n";
+                std::cout << "3. Buscar por marca\n";
+                std::cout << "4. Buscar por descripcion\n";
+                std::cout << "5. Volver\n";
+                seccion("Seleccion");
+                std::cout << "Seleccione una opcion: ";
+                std::cin >> opcionBusqueda;
                 std::cin.ignore();
 
-                if (idProducto != 0) {
-                    verDetallesProducto(idProducto, usuario);
-                }
-                break;
-            }
-            case 3: {
-                int opcionBusqueda;
-                bool volver = false;
+                std::vector<Producto> resultados;
 
-                while (!volver) {
+                switch (opcionBusqueda)
+                {
+                case 1:
+                {
+                    seccion("Categorias Disponibles");
+                    for (const auto &cat : categorias)
+                    {
+                        std::cout << "- " << cat << "\n";
+                    }
+                    seccion("Busqueda");
+                    std::cout << "Ingrese categoria: ";
+                    std::string categoria;
+                    std::getline(std::cin, categoria);
+                    resultados = buscarPorCategoria(catalogoGlobal, categoria);
+                    break;
+                }
+                case 2:
+                {
+                    seccion("Rango de Precios");
+                    double min, max;
+                    std::cout << "Ingrese precio minimo: ";
+                    std::cin >> min;
+                    std::cout << "Ingrese precio maximo: ";
+                    std::cin >> max;
+                    std::cin.ignore();
+                    resultados = buscarPorRangoPrecios(catalogoGlobal, min, max);
+                    break;
+                }
+                case 3:
+                {
+                    seccion("Marcas Disponibles");
+                    for (const auto &marca : marcas)
+                    {
+                        std::cout << "- " << marca << "\n";
+                    }
+                    seccion("Busqueda");
+                    std::cout << "Ingrese marca: ";
+                    std::string marca;
+                    std::getline(std::cin, marca);
+                    resultados = buscarPorMarca(catalogoGlobal, marca);
+                    break;
+                }
+                case 4:
+                {
+                    seccion("Busqueda por Descripcion");
+                    std::cout << "Ingrese palabra clave (ej: PlayStation, laptop, Galaxy): ";
+                    std::string clave;
+                    std::getline(std::cin, clave);
+                    resultados = buscarPorDescripcion(catalogoGlobal, clave);
+                    break;
+                }
+                case 5:
+                    volver = true;
+                    break;
+                default:
+                    opcioninvalida(1, 5);
+                    pausarConsola();
+                    continue;
+                }
+
+                if (opcionBusqueda >= 1 && opcionBusqueda <= 4)
+                {
                     clearScreen();
-                    encabezado("Buscar Productos");
-                    std::cout << "1. Buscar por categoria\n";
-                    std::cout << "2. Buscar por rango de precios\n";
-                    std::cout << "3. Buscar por marca\n";
-                    std::cout << "4. Buscar por descripcion\n";
-                    std::cout << "5. Volver\n";
-                    std::cout << "------------------------\n";
-                    std::cout << "Seleccione una opcion: ";
-                    std::cin >> opcionBusqueda;
+                    encabezado("Resultados de la busqueda");
+
+                    if (resultados.empty())
+                    {
+                        seccion("Sin Resultados");
+                        std::cout << "No se encuentra ninguna coincidencia.\n";
+                    }
+                    else
+                    {
+                        seccion("Productos Encontrados");
+                        for (const auto &prod : resultados)
+                        {
+                            std::cout << "ID: " << prod.id << " - " << prod.descripcion << "\n";
+                        }
+                    }
+
+                    seccion("Detalles de Producto");
+                    std::cout << "\nIngrese el ID del producto para ver detalles (0 para volver): ";
+                    int idProducto;
+                    std::cin >> idProducto;
                     std::cin.ignore();
 
-                    std::vector<Producto> resultados;
-
-                    switch (opcionBusqueda) {
-                        case 1: {
-                            std::cout << "Categorias disponibles:\n";
-                            for (const auto& cat : categorias) {
-                                std::cout << "- " << cat << "\n";
-                            }
-                            std::cout << "Ingrese categoria: ";
-                            std::string categoria;
-                            std::getline(std::cin, categoria);
-                            resultados = buscarPorCategoria(catalogoGlobal, categoria);
-                            break;
-                        }
-                        case 2: {
-                            double min, max;
-                            std::cout << "Ingrese precio minimo: ";
-                            std::cin >> min;
-                            std::cout << "Ingrese precio maximo: ";
-                            std::cin >> max;
-                            std::cin.ignore();
-                            resultados = buscarPorRangoPrecios(catalogoGlobal, min, max);
-                            break;
-                        }
-                        case 3: {
-                            std::cout << "Marcas disponibles:\n";
-                            for (const auto& marca : marcas) {
-                                std::cout << "- " << marca << "\n";
-                            }
-                            std::cout << "Ingrese marca: ";
-                            std::string marca;
-                            std::getline(std::cin, marca);
-                            resultados = buscarPorMarca(catalogoGlobal, marca);
-                            break;
-                        }
-                        case 4: {
-                            std::cout << "Ingrese palabra clave (ej: telefono, laptop, auriculares): ";
-                            std::string clave;
-                            std::getline(std::cin, clave);
-                            resultados = buscarPorDescripcion(catalogoGlobal, clave);
-                            break;
-                        }
-                        case 5:
-                            volver = true;
-                            break;
-                        default:
-                            opcioninvalida(1, 5);
-                            pausarConsola();
-                            continue;
-                    }
-
-                    if (opcionBusqueda >= 1 && opcionBusqueda <= 4) {
-                        clearScreen();
-                        encabezado("Resultados de la busqueda");
-
-                        if (resultados.empty()) {
-                            std::cout << "No se encuentra ninguna coincidencia.\n";
-                        } else {
-                            for (const auto& prod : resultados) {
-                                std::cout << "ID: " << prod.id << " - " << prod.descripcion << "\n";
-                            }
-                        }
-
-                        std::cout << "\nIngrese el ID del producto para ver detalles (0 para volver): ";
-                        int idProducto;
-                        std::cin >> idProducto;
-                        std::cin.ignore();
-
-                        if (idProducto != 0) {
-                            verDetallesProducto(idProducto, usuario);
-                        }
+                    if (idProducto != 0)
+                    {
+                        verDetallesProducto(idProducto, usuario);
                     }
                 }
-                break;
             }
-            case 4:
-                salir = true;
-                clearScreen();
-                encabezado("Sesion finalizada");
-                pausarConsola();
-                break;
-            default:
-                opcioninvalida(1, 4);
-                pausarConsola();
-                break;
+            break;
+        }
+        case 4:
+            verCarrito(usuario);
+            break;
+        case 5:
+            verListaDeseos(usuario);
+            break;
+        case 6:
+            verHistorial(usuario);
+            break;
+        case 7:
+            salir = true;
+            clearScreen();
+            encabezado("Sesion finalizada");
+            pausarConsola();
+            break;
+        default:
+            opcioninvalida(1, 7);
+            pausarConsola();
+            break;
         }
     }
 }
 
-//**Comandos de usuario**
-void imprimirUsuario(Usuario &usuario) {
+void imprimirUsuario(Usuario &usuario)
+{
     std::cout << std::string(50, '=') << std::endl;
     printCentered("Felicidades, nuevo usuario registrado.");
     std::cout << std::string(50, '=') << std::endl;
@@ -720,110 +1124,187 @@ void imprimirUsuario(Usuario &usuario) {
     std::cout << std::string(50, '-') << std::endl;
     std::cout << "Password: " << usuario.password << std::endl;
     std::cout << std::string(50, '-') << std::endl;
+    std::cout << std::string(50, '=') << std::endl;
 }
 
-void ComandoRegistrarUsuario() {
+void ComandoRegistrarUsuario()
+{
     clearScreen();
     encabezado("Registro de usuario");
 
     Usuario nuevo;
     bool cancelado = false;
 
-    // Validar campos
-    auto validarCampo = [](const std::string &valor, const std::string &campo) -> bool {
-        if (valor.empty()) {
+    auto validarCampo = [](const std::string &valor, const std::string &campo) -> bool
+    {
+        if (valor.empty())
+        {
+            std::cout << std::string(50, '-') << std::endl;
             std::cout << "ERROR: El " << campo << " no puede estar vacio\n";
+            std::cout << std::string(50, '-') << std::endl;
             return false;
         }
         return true;
     };
 
-    // Nombre
-    do {
-        std::cout << "Nombre: ";
+    std::cout << std::string(50, '=') << std::endl;
+
+    do
+    {
+        std::cout << std::string(50, '-') << std::endl;
+        std::cout << "Nombre: " << std::endl;
         nuevo.nombre = leertexto();
+        std::cout << std::string(50, '-') << std::endl;
     } while (!validarCampo(nuevo.nombre, "nombre"));
 
-    // Apellido
-    do {
-        std::cout << "Apellido: ";
+    std::cout << std::string(50, '=') << std::endl;
+    std::cout << "Nombre registrado: " << nuevo.nombre << std::endl;
+    std::cout << std::string(50, '=') << std::endl;
+
+    do
+    {
+        std::cout << std::string(50, '-') << std::endl;
+        std::cout << "Apellido: " << std::endl;
         nuevo.apellido = leertexto();
+        std::cout << std::string(50, '-') << std::endl;
     } while (!validarCampo(nuevo.apellido, "apellido"));
 
-    // Usuario
-    do {
-        std::cout << "Usuario: ";
+    std::cout << std::string(50, '=') << std::endl;
+    std::cout << "Apellido registrado: " << nuevo.apellido << std::endl;
+    std::cout << std::string(50, '=') << std::endl;
+
+    do
+    {
+        std::cout << std::string(50, '-') << std::endl;
+        std::cout << "Usuario: " << std::endl;
         std::string input = leertexto();
+        std::cout << std::string(50, '-') << std::endl;
 
-        if (!validarCampo(input, "usuario")) continue;
+        if (!validarCampo(input, "usuario"))
+            continue;
 
-        if (input.find(' ') != std::string::npos) {
+        if (input.find(' ') != std::string::npos)
+        {
             std::cout << "ERROR: El usuario no puede contener espacios\n";
+            std::cout << std::string(50, '-') << std::endl;
             continue;
         }
 
         Nodoarbol *coincidencia = buscar(Usuarios, input);
-        if (coincidencia != nullptr) {
+        if (coincidencia != nullptr)
+        {
+            std::cout << std::string(50, '=') << std::endl;
+            std::cout << std::string(50, '-') << std::endl;
             std::cout << "Usuario '" << input << "' ya registrado.\n";
             std::cout << "Desea intentar con otro usuario? (s/n): ";
             std::string continuar = leertexto();
 
-            if (continuar == "n" || continuar == "N") {
+            if (continuar == "n" || continuar == "N")
+            {
                 std::cout << "Registro de usuario cancelado\n";
+                std::cout << std::string(50, '-') << std::endl;
+                std::cout << std::string(50, '=') << std::endl;
                 cancelado = true;
                 break;
             }
+
+            std::cout << std::string(50, '-') << std::endl;
+            std::cout << std::string(50, '=') << std::endl;
+
             continue;
         }
 
         nuevo.usuario = input;
         break;
+
     } while (true);
 
-    if (cancelado) {
+    if (cancelado)
+    {
         pausarConsola();
         return;
     }
 
-    // Contraseña
-    do {
+    std::cout << std::string(50, '=') << std::endl;
+    std::cout << "Usuario registrado: " << nuevo.usuario << std::endl;
+    std::cout << std::string(50, '=') << std::endl;
+
+    do
+    {
+        std::cout << std::string(50, '-') << std::endl;
         std::cout << "Password (minimo 6 caracteres): ";
         nuevo.password = leertexto();
-        if (nuevo.password.length() < 6) {
+        std::cout << std::string(50, '-') << std::endl;
+        if (nuevo.password.length() < 6)
+        {
+            std::cout << std::string(50, '=') << std::endl;
             std::cout << "ERROR: La password debe tener minimo 6 caracteres\n";
+            std::cout << std::string(50, '=') << std::endl;
         }
     } while (nuevo.password.length() < 6);
 
-    // Generar id
-    nuevo.id = generarID();
-    nuevo.historial = nullptr;
-    nuevo.preferencias = nullptr;
+    std::cout << std::string(50, '=') << std::endl;
+    std::cout << "Password registrada: " << nuevo.password << std::endl;
+    std::cout << std::string(50, '=') << std::endl;
 
-    // Guardar usuario
+    nuevo.id = generarID();
+
+    std::cout << std::string(50, '-') << std::endl;
+    std::cout << "Generando ID de usuario." << std::endl;
+    std::cout << std::string(50, '-') << std::endl;
+
+    std::this_thread::sleep_for(std::chrono::seconds(3));
+
+    std::cout << std::string(50, '=') << std::endl;
+    std::cout << "ID: " << nuevo.id << std::endl;
+    std::cout << std::string(50, '=') << std::endl;
+
+    std::cout << std::string(50, '-') << std::endl;
+    std::cout << std::string(50, '=') << std::endl;
+
+    pausarConsola();
+
+    nuevo.historial = nullptr;
+    nuevo.carrito = nullptr;
+    nuevo.listaDeseos = nullptr;
+
+    // Primero seleccionar preferencias
+    seleccionarPreferencias(&nuevo);
+
+    // Luego insertar en el árbol con las preferencias ya asignadas
     insertar(Usuarios, nuevo);
 
-    // Mostrar resultado
     clearScreen();
-    std::cout << "REGISTRO EXITOSO!\n";
     imprimirUsuario(nuevo);
     pausarConsola();
 }
 
-Usuario* ComandoIngresarUsuario() {
-    do {
+Usuario *ComandoIngresarUsuario()
+{
+    do
+    {
         clearScreen();
         encabezado("Ingresar a la plataforma.");
 
+        std::cout << std::string(50, '=') << std::endl;
+        std::cout << std::string(50, '-') << std::endl;
         std::cout << "Ingrese el usuario: ";
         std::string usuario = leertexto();
         Nodoarbol *ingreso = buscar(Usuarios, usuario);
 
-        if (ingreso == nullptr) {
+        if (ingreso == nullptr)
+        {
+            std::cout << std::string(50, '-') << std::endl;
+            std::cout << std::string(50, '=') << std::endl;
+            seccion("Usuario no encontrado");
             std::cout << "El usuario '" << usuario << "' no existe.\n";
             std::cout << "Desea probar con otro usuario? (s/n): ";
             std::string opcion = leertexto();
+            std::cout << std::string(50, '=') << std::endl;
 
-            if (opcion == "n" || opcion == "N") {
+            if (opcion == "n" || opcion == "N")
+            {
+                std::cout << std::string(50, '=') << std::endl;
                 return nullptr;
             }
             continue;
@@ -832,30 +1313,39 @@ Usuario* ComandoIngresarUsuario() {
         int intentos = 0;
         const int MAX_INTENTOS = 3;
 
-        while (intentos < MAX_INTENTOS) {
+        while (intentos < MAX_INTENTOS)
+        {
+            std::cout << std::string(50, '-') << std::endl;
             std::cout << "Ingrese la password: ";
             std::string password = leertexto();
 
-            if (verificarPassword(ingreso, password)) {
+            if (verificarPassword(ingreso, password))
+            {
                 clearScreen();
                 encabezado("LOGIN EXITOSO");
                 pausarConsola();
                 return &(ingreso->dato);
-            } else {
+            }
+            else
+            {
                 intentos++;
+                seccion("Password Incorrecta");
                 std::cout << "Password incorrecta. Intento " << intentos << "/" << MAX_INTENTOS << "\n";
 
-                if (intentos < MAX_INTENTOS) {
+                if (intentos < MAX_INTENTOS)
+                {
                     std::cout << "Desea intentar de nuevo? (s/n): ";
                     std::string reintentar = leertexto();
 
-                    if (reintentar == "n" || reintentar == "N") {
+                    if (reintentar == "n" || reintentar == "N")
+                    {
                         return nullptr;
                     }
                 }
             }
         }
 
+        seccion("Maximo de Intentos");
         std::cout << "Ha superado el maximo de intentos\n";
         pausarConsola();
         return nullptr;
@@ -863,44 +1353,52 @@ Usuario* ComandoIngresarUsuario() {
     } while (true);
 }
 
-//**Menú principal**
-void Mainmenu() {
+void Mainmenu()
+{
     int opcion;
 
-    do {
+    do
+    {
         clearScreen();
         encabezado("Bienvenid@ a Quantum Store.");
+
+        seccion("Menu Principal");
         std::cout << "1. Registrar un nuevo usuario\n";
         std::cout << "2. Ingresar con un usuario existente\n";
         std::cout << "3. Salir\n";
+        seccion("Seleccion");
         std::cout << "Seleccione una opcion: ";
         std::cin >> opcion;
         std::cin.ignore();
 
-        switch (opcion) {
-            case 1:
-                ComandoRegistrarUsuario();
-                break;
-            case 2: {
-                Usuario* usuario = ComandoIngresarUsuario();
-                if (usuario != nullptr) {
-                    mostrarMenuUsuario(usuario);
-                }
-                break;
+        switch (opcion)
+        {
+        case 1:
+            ComandoRegistrarUsuario();
+            break;
+        case 2:
+        {
+            Usuario *usuario = ComandoIngresarUsuario();
+            if (usuario != nullptr)
+            {
+                mostrarMenuUsuario(usuario);
             }
-            case 3:
-                return;
-            default:
-                opcioninvalida(1, 3);
-                pausarConsola();
-                break;
+            break;
+        }
+        case 3:
+            return;
+        default:
+            opcioninvalida(1, 3);
+            pausarConsola();
+            break;
         }
     } while (true);
 }
 
-int main() {
+int main()
+{
     catalogoGlobal = generarCatalogo();
     Mainmenu();
-    std::cout << "Gracias por visitar.\n";
+    encabezado("Gracias por visitar Quantum Store");
     return 0;
 }
