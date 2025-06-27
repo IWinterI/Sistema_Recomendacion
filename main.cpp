@@ -1,5 +1,4 @@
 #include <iostream>
-#include <iostream>
 #include <vector>
 #include <string>
 #include <cctype>
@@ -29,6 +28,7 @@ struct Usuario
     std::string usuario;
     std::string password;
     Nodolista *preferencias;
+    Nodolista *categoriasPreferidas; // Added from test branch
     Nodolista *historial;
     Nodolista *carrito;
     Nodolista *listaDeseos;
@@ -72,6 +72,16 @@ struct Producto
                   << "\nCalidad: " << std::string(calidad, '*')
                   << " (" << calidad << "/5)\n\n";
     }
+};
+
+// Struct Recomendaciones from test branch
+struct Recomendaciones
+{
+    std::vector<Producto> porMarcasPreferidas;
+    std::vector<Producto> porOtrasMarcasFrecuentes;
+    std::vector<Producto> porCategoriaPreferida;
+    std::vector<Producto> porCategoriaFrecuente;
+    std::vector<Producto> porCalidad;
 };
 
 Nodoarbol *Usuarios = nullptr;
@@ -446,13 +456,15 @@ void verDetallesProducto(int idProducto, Usuario *usuario)
     pausarConsola();
 }
 
+// EstadisticasUsuario struct from test branch
 struct EstadisticasUsuario
 {
-    std::string categoriaFrecuente;
-    std::string marcaFrecuente;
-    int calidadFrecuente;
+    std::vector<std::string> categoriasFrecuentes;
+    std::vector<std::string> marcasFrecuentes;
+    int calidadFrecuente = 0;
 };
 
+// obtenerEstadisticasUsuario function from test branch
 EstadisticasUsuario obtenerEstadisticasUsuario(Usuario *usuario)
 {
     EstadisticasUsuario stats;
@@ -479,20 +491,31 @@ EstadisticasUsuario obtenerEstadisticasUsuario(Usuario *usuario)
 
     if (!conteoCategorias.empty())
     {
-        stats.categoriaFrecuente = std::max_element(
-                                       conteoCategorias.begin(), conteoCategorias.end(),
-                                       [](const auto &a, const auto &b)
-                                       { return a.second < b.second; })
-                                       ->first;
+        std::vector<std::pair<std::string, int>> categoriasOrdenadas(
+            conteoCategorias.begin(), conteoCategorias.end());
+        std::sort(categoriasOrdenadas.begin(), categoriasOrdenadas.end(),
+                  [](const auto &a, const auto &b)
+                  { return a.second > b.second; });
+
+        for (int i = 0; i < std::min(2, (int)categoriasOrdenadas.size()); i++)
+        {
+            stats.categoriasFrecuentes.push_back(categoriasOrdenadas[i].first);
+        }
     }
 
     if (!conteoMarcas.empty())
     {
-        stats.marcaFrecuente = std::max_element(
-                                   conteoMarcas.begin(), conteoMarcas.end(),
-                                   [](const auto &a, const auto &b)
-                                   { return a.second < b.second; })
-                                   ->first;
+
+        std::vector<std::pair<std::string, int>> marcasOrdenadas(
+            conteoMarcas.begin(), conteoMarcas.end());
+        std::sort(marcasOrdenadas.begin(), marcasOrdenadas.end(),
+                  [](const auto &a, const auto &b)
+                  { return a.second > b.second; });
+
+        for (int i = 0; i < std::min(2, (int)marcasOrdenadas.size()); i++)
+        {
+            stats.marcasFrecuentes.push_back(marcasOrdenadas[i].first);
+        }
     }
 
     if (!conteoCalidades.empty())
@@ -507,66 +530,134 @@ EstadisticasUsuario obtenerEstadisticasUsuario(Usuario *usuario)
     return stats;
 }
 
-std::vector<Producto> generarRecomendaciones(Usuario *usuario)
+// actualizarPreferenciasDinamicas function from test branch
+void actualizarPreferenciasDinamicas(Usuario *usuario)
 {
-    const int MAX_RECOMENDACIONES = 20;
+    if (usuario == nullptr || usuario->historial == nullptr) return;
+
+    std::map<std::string, int> conteoCategorias;
+    std::map<std::string, int> conteoMarcas;
+
+    Nodolista *actual = usuario->historial;
+    while (actual != nullptr)
+    {
+        int id = std::stoi(actual->dato);
+        for (const auto &producto : catalogoGlobal)
+        {
+            if (producto.id == id)
+            {
+                conteoCategorias[producto.categoria]++;
+                conteoMarcas[producto.marca]++;
+                break;
+            }
+        }
+        actual = actual->siguiente;
+    }
+
+    // Limpiar preferencias de categorías anteriores para recalcular
+    while (usuario->categoriasPreferidas != nullptr)
+    {
+        Nodolista* temp = usuario->categoriasPreferidas;
+        usuario->categoriasPreferidas = usuario->categoriasPreferidas->siguiente;
+        delete temp;
+    }
+
+    if (!conteoCategorias.empty())
+    {
+        std::vector<std::pair<std::string, int>> sorted_categorias(
+            conteoCategorias.begin(), conteoCategorias.end());
+        std::sort(sorted_categorias.begin(), sorted_categorias.end(),
+                  [](const auto &a, const auto &b) { return a.second > b.second; });
+
+        for (int i = 0; i < std::min(2, (int)sorted_categorias.size()); ++i)
+        {
+            insertarLista(usuario->categoriasPreferidas, sorted_categorias[i].first);
+        }
+    }
+
+    if (!conteoMarcas.empty())
+    {
+        std::vector<std::pair<std::string, int>> sorted_marcas(
+            conteoMarcas.begin(), conteoMarcas.end());
+        std::sort(sorted_marcas.begin(), sorted_marcas.end(),
+                  [](const auto &a, const auto &b) { return a.second > b.second; });
+
+        for (int i = 0; i < std::min(2, (int)sorted_marcas.size()); ++i)
+        {
+            if (!existeEnLista(usuario->preferencias, sorted_marcas[i].first))
+            {
+                insertarLista(usuario->preferencias, sorted_marcas[i].first);
+            }
+        }
+    }
+}
+
+// generarRecomendaciones function from test branch
+Recomendaciones generarRecomendaciones(Usuario *usuario)
+{
+    actualizarPreferenciasDinamicas(usuario);
+
+    Recomendaciones recomendaciones;
     std::map<int, double> puntuaciones;
 
-    if (usuario->carrito != nullptr)
+    // Puntuación basada en el carrito
+    Nodolista *current = usuario->carrito;
+    while (current != nullptr)
     {
-        Nodolista *carrito = usuario->carrito;
-        while (carrito != nullptr)
-        {
-            int id = std::stoi(carrito->dato);
-            puntuaciones[id] += 20.0;
-            carrito = carrito->siguiente;
-        }
+        int id = std::stoi(current->dato);
+        puntuaciones[id] += 20.0;
+        current = current->siguiente;
     }
 
-    if (usuario->listaDeseos != nullptr)
+    // Puntuación basada en la lista de deseos
+    current = usuario->listaDeseos;
+    while (current != nullptr)
     {
-        Nodolista *deseos = usuario->listaDeseos;
-        while (deseos != nullptr)
-        {
-            int id = std::stoi(deseos->dato);
-            puntuaciones[id] += 15.0;
-            deseos = deseos->siguiente;
-        }
+        int id = std::stoi(current->dato);
+        puntuaciones[id] += 15.0;
+        current = current->siguiente;
     }
 
-    if (usuario->historial != nullptr)
+    // Puntuación basada en el historial de navegación
+    current = usuario->historial;
+    while (current != nullptr)
     {
-        Nodolista *hist = usuario->historial;
-        while (hist != nullptr)
-        {
-            int id = std::stoi(hist->dato);
-            puntuaciones[id] += 10.0;
-            hist = hist->siguiente;
-        }
+        int id = std::stoi(current->dato);
+        puntuaciones[id] += 10.0;
+        current = current->siguiente;
     }
 
     EstadisticasUsuario stats = obtenerEstadisticasUsuario(usuario);
 
-    bool sinInteracciones = puntuaciones.empty();
-    if (sinInteracciones && usuario->preferencias != nullptr)
+    // Puntuación basada en preferencias de usuario (manuales)
+    current = usuario->preferencias;
+    while (current != nullptr)
     {
-        Nodolista *pref = usuario->preferencias;
-        while (pref != nullptr)
+        std::vector<Producto> productosCategoria = buscarPorCategoria(catalogoGlobal, current->dato);
+        for (const auto &prod : productosCategoria)
         {
-            std::vector<Producto> productosCategoria = buscarPorCategoria(catalogoGlobal, pref->dato);
-            for (const auto &prod : productosCategoria)
-            {
-                puntuaciones[prod.id] += 30.0;
-            }
-            pref = pref->siguiente;
+            puntuaciones[prod.id] += 30.0;
         }
+        current = current->siguiente;
     }
 
+    // Puntuación basada en categorías preferidas dinámicas
+    current = usuario->categoriasPreferidas;
+    while (current != nullptr)
+    {
+        std::vector<Producto> productosCategoria = buscarPorCategoria(catalogoGlobal, current->dato);
+        for (const auto &prod : productosCategoria)
+        {
+            puntuaciones[prod.id] += 25.0;
+        }
+        current = current->siguiente;
+    }
+
+    // Aplicar puntuaciones adicionales basadas en estadísticas
     for (auto &p : puntuaciones)
     {
         int id = p.first;
         Producto *prod = nullptr;
-
         for (auto &producto : catalogoGlobal)
         {
             if (producto.id == id)
@@ -578,49 +669,33 @@ std::vector<Producto> generarRecomendaciones(Usuario *usuario)
 
         if (prod)
         {
-            if (!stats.categoriaFrecuente.empty() &&
-                stats.categoriaFrecuente == prod->categoria)
+            // Si la categoría del producto es una de las frecuentes
+            for (const auto &catFrec : stats.categoriasFrecuentes)
             {
-                p.second += 8.0;
-            }
-            if (!stats.marcaFrecuente.empty() &&
-                stats.marcaFrecuente == prod->marca)
-            {
-                p.second += 5.0;
-            }
-            if (usuario->preferencias != nullptr)
-            {
-                Nodolista *pref = usuario->preferencias;
-                while (pref != nullptr)
+                if (catFrec == prod->categoria)
                 {
-                    if (pref->dato == prod->categoria)
-                    {
-                        p.second += 7.0;
-                        break;
-                    }
-                    pref = pref->siguiente;
+                    p.second += 8.0;
+                    break;
                 }
+            }
+            // Si la marca del producto es una de las frecuentes
+            for (const auto &marcaFrec : stats.marcasFrecuentes)
+            {
+                if (marcaFrec == prod->marca)
+                {
+                    p.second += 5.0;
+                    break;
+                }
+            }
+            // Si la calidad del producto coincide con la calidad frecuente
+            if (stats.calidadFrecuente != 0 && stats.calidadFrecuente == prod->calidad)
+            {
+                p.second += 3.0;
             }
         }
     }
 
-    if (puntuaciones.size() < MAX_RECOMENDACIONES && usuario->preferencias != nullptr)
-    {
-        Nodolista *pref = usuario->preferencias;
-        while (pref != nullptr && puntuaciones.size() < MAX_RECOMENDACIONES)
-        {
-            std::vector<Producto> productosCategoria = buscarPorCategoria(catalogoGlobal, pref->dato);
-            for (const auto &prod : productosCategoria)
-            {
-                if (puntuaciones.find(prod.id) == puntuaciones.end())
-                {
-                    puntuaciones[prod.id] = 25.0;
-                }
-            }
-            pref = pref->siguiente;
-        }
-    }
-
+    // Ordenar productos por puntuación
     std::vector<std::pair<int, double>> productosPuntuados;
     for (const auto &p : puntuaciones)
     {
@@ -633,51 +708,78 @@ std::vector<Producto> generarRecomendaciones(Usuario *usuario)
                   return a.second > b.second;
               });
 
-    std::vector<Producto> recomendados;
-    size_t count = 0;
+    // Llenar las categorías de recomendaciones
     for (const auto &p : productosPuntuados)
     {
-        if (count++ >= MAX_RECOMENDACIONES)
-            break;
-
         for (const auto &prod : catalogoGlobal)
         {
             if (prod.id == p.first)
             {
-                recomendados.push_back(prod);
+                // Asignar a la categoría de recomendación adecuada
+                bool added = false;
+                // Por marcas preferidas (manuales o dinámicas)
+                Nodolista *prefMarca = usuario->preferencias;
+                while (prefMarca != nullptr)
+                {
+                    if (prefMarca->dato == prod.marca)
+                    {
+                        recomendaciones.porMarcasPreferidas.push_back(prod);
+                        added = true;
+                        break;
+                    }
+                    prefMarca = prefMarca->siguiente;
+                }
+                if (added) continue;
+
+                // Por otras marcas frecuentes (dinámicas)
+                for (const auto &marcaFrec : stats.marcasFrecuentes)
+                {
+                    if (marcaFrec == prod.marca)
+                    {
+                        recomendaciones.porOtrasMarcasFrecuentes.push_back(prod);
+                        added = true;
+                        break;
+                    }
+                }
+                if (added) continue;
+
+                // Por categoría preferida (manual)
+                Nodolista *prefCat = usuario->preferencias;
+                while (prefCat != nullptr)
+                {
+                    if (prefCat->dato == prod.categoria)
+                    {
+                        recomendaciones.porCategoriaPreferida.push_back(prod);
+                        added = true;
+                        break;
+                    }
+                    prefCat = prefCat->siguiente;
+                }
+                if (added) continue;
+
+                // Por categoría frecuente (dinámica)
+                for (const auto &catFrec : stats.categoriasFrecuentes)
+                {
+                    if (catFrec == prod.categoria)
+                    {
+                        recomendaciones.porCategoriaFrecuente.push_back(prod);
+                        added = true;
+                        break;
+                    }
+                }
+                if (added) continue;
+
+                // Por calidad
+                if (prod.calidad >= 4) // Considerar productos de alta calidad
+                {
+                    recomendaciones.porCalidad.push_back(prod);
+                }
                 break;
             }
         }
     }
 
-    if (recomendados.size() < MAX_RECOMENDACIONES)
-    {
-        std::vector<Producto> productosPopulares;
-        for (const auto &prod : catalogoGlobal)
-        {
-            if (prod.calidad >= 4)
-            {
-                productosPopulares.push_back(prod);
-            }
-        }
-
-        std::random_device rd;
-        std::mt19937 g(rd());
-        std::shuffle(productosPopulares.begin(), productosPopulares.end(), g);
-
-        size_t necesarios = MAX_RECOMENDACIONES - recomendados.size();
-        for (size_t i = 0; i < necesarios && i < productosPopulares.size(); i++)
-        {
-            if (std::find_if(recomendados.begin(), recomendados.end(),
-                             [&](const Producto &p)
-                             { return p.id == productosPopulares[i].id; }) == recomendados.end())
-            {
-                recomendados.push_back(productosPopulares[i]);
-            }
-        }
-    }
-
-    return recomendados;
+    return recomendaciones;
 }
 
 void seleccionarPreferencias(Usuario *usuario)
@@ -799,7 +901,7 @@ void verCarrito(Usuario *usuario)
             delete temp;
         }
         seccion("Compra Realizada");
-        std::cout << "�Gracias por su compra!\n";
+        std::cout << "¡Gracias por su compra!\n";
         pausarConsola();
     }
     else if (opcion == 2)
@@ -921,60 +1023,75 @@ void mostrarMenuUsuario(Usuario *usuario)
             clearScreen();
             encabezado("Productos Recomendados");
 
-            std::vector<Producto> recomendaciones = generarRecomendaciones(usuario);
+            Recomendaciones recomendaciones = generarRecomendaciones(usuario); // Changed to use new return type
 
-            if (recomendaciones.empty())
+            if (recomendaciones.porMarcasPreferidas.empty() &&
+                recomendaciones.porOtrasMarcasFrecuentes.empty() &&
+                recomendaciones.porCategoriaPreferida.empty() &&
+                recomendaciones.porCategoriaFrecuente.empty() &&
+                recomendaciones.porCalidad.empty())
             {
                 seccion("Sin Recomendaciones");
                 std::cout << "No hay recomendaciones disponibles. Vea algunos productos primero.\n";
             }
             else
             {
-                seccion("Recomendados para ti");
-                for (const auto &prod : recomendaciones)
+                if (!recomendaciones.porMarcasPreferidas.empty())
                 {
-                    std::cout << "ID: " << prod.id << " - " << prod.descripcion;
-
-                    std::string razon = "";
-                    std::string idStr = std::to_string(prod.id);
-
-                    if (usuario->preferencias && existeEnLista(usuario->preferencias, prod.categoria))
+                    seccion("Recomendados por Marcas Preferidas");
+                    for (const auto &prod : recomendaciones.porMarcasPreferidas)
                     {
-                        razon += " (Preferencia)";
+                        std::cout << "ID: " << prod.id << " - " << prod.descripcion << "\n";
                     }
-                    if (usuario->carrito && existeEnLista(usuario->carrito, idStr))
+                }
+                if (!recomendaciones.porOtrasMarcasFrecuentes.empty())
+                {
+                    seccion("Recomendados por Otras Marcas Frecuentes");
+                    for (const auto &prod : recomendaciones.porOtrasMarcasFrecuentes)
                     {
-                        razon += " (Carrito)";
+                        std::cout << "ID: " << prod.id << " - " << prod.descripcion << "\n";
                     }
-                    if (usuario->listaDeseos && existeEnLista(usuario->listaDeseos, idStr))
+                }
+                if (!recomendaciones.porCategoriaPreferida.empty())
+                {
+                    seccion("Recomendados por Categoría Preferida");
+                    for (const auto &prod : recomendaciones.porCategoriaPreferida)
                     {
-                        razon += " (Deseos)";
+                        std::cout << "ID: " << prod.id << " - " << prod.descripcion << "\n";
                     }
-                    if (usuario->historial && existeEnLista(usuario->historial, idStr))
+                }
+                if (!recomendaciones.porCategoriaFrecuente.empty())
+                {
+                    seccion("Recomendados por Categoría Frecuente");
+                    for (const auto &prod : recomendaciones.porCategoriaFrecuente)
                     {
-                        razon += " (Historial)";
+                        std::cout << "ID: " << prod.id << " - " << prod.descripcion << "\n";
                     }
-
-                    std::cout << razon << "\n";
+                }
+                if (!recomendaciones.porCalidad.empty())
+                {
+                    seccion("Recomendados por Calidad");
+                    for (const auto &prod : recomendaciones.porCalidad)
+                    {
+                        std::cout << "ID: " << prod.id << " - " << prod.descripcion << "\n";
+                    }
                 }
             }
 
-            if (!recomendaciones.empty())
-            {
-                seccion("Detalles de Producto");
-                std::cout << "Ingrese el ID del producto para ver detalles (0 para volver): ";
-                int idProducto;
-                std::cin >> idProducto;
-                std::cin.ignore();
+            // This part needs to be adjusted to allow viewing details of any recommended product
+            // For simplicity, I'll just ask for a product ID from the entire catalog.
+            // A more robust solution would involve presenting a combined list of recommended products.
+            std::cout << "\nIngrese el ID de un producto para ver detalles (0 para volver): ";
+            int idProducto;
+            std::cin >> idProducto;
+            std::cin.ignore();
 
-                if (idProducto != 0)
-                {
-                    verDetallesProducto(idProducto, usuario);
-                }
+            if (idProducto != 0)
+            {
+                verDetallesProducto(idProducto, usuario);
             }
 
             pausarConsola();
-
             break;
         }
         case 3:
@@ -1272,6 +1389,7 @@ void ComandoRegistrarUsuario()
     nuevo.preferencias = nullptr;
     nuevo.carrito = nullptr;
     nuevo.listaDeseos = nullptr;
+    nuevo.categoriasPreferidas = nullptr; // Initialize new member
 
     insertar(Usuarios, nuevo);
     seleccionarPreferencias(&nuevo);
@@ -1368,7 +1486,6 @@ void Mainmenu()
         std::cout << "1. Registrar un nuevo usuario\n";
         std::cout << "2. Ingresar con un usuario existente\n";
         std::cout << "3. Salir\n";
-        seccion("Seleccion");
         std::cout << "Seleccione una opcion: ";
         std::cin >> opcion;
         std::cin.ignore();
@@ -1394,8 +1511,8 @@ void Mainmenu()
             pausarConsola();
             break;
         }
-    } while (true);
-}
+    }
+} 
 
 int main()
 {
