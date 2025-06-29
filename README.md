@@ -272,3 +272,46 @@ El sistema utiliza estructuras de datos personalizadas como listas enlazadas, á
     N[MapaIntInt] --> O[NodoMapaIntInt]
 ```
 
+## Listado completo de funciones y agrupaciones.
+
+### Módulo Principal (main.cpp)                                                       
+
+|Función	|Descripción	                |Relaciones/Dependencias               |
+|-----------|-------------------------------|--------------------------------------|
+|`main()`	|Punto de entrada del programa	|`inicializarCatalogo()`, `Mainmenu()` |
+
+### Gestión de Usuarios (usuario.h/cpp)
+
+|Función	                        |Descripción	                                |Relaciones/Dependencias                                                                    |    
+|-----------------------------------|-----------------------------------------------|-------------------------------------------------------------------------------------------|
+|`crearNodo(Usuario valor)`	        |Crea nuevo nodo de árbol para usuarios	        |-                                                                                          |
+|`buscar(Nodoarbol*, string)`	    |Busca usuario en el árbol	                    |-                                                                                          |
+|`insertar(Nodoarbol*&, Usuario&)`	|Inserta usuario en árbol binario de búsqueda	|`crearNodo()`                                                                              |
+|`verificarPassword()`	            |Valida contraseña de usuario	                |-                                                                                          |
+|`imprimirUsuario()`	            |Muestra detalles de usuario registrado	        |`encabezado()`, `pausarConsola()`                                                          |
+|`seleccionarPreferencias()`	    |Selección de marcas/categorías preferidas	    |`obtenerMarcasUnicas()`, `obtenerCategoriasUnicas()`, `insertarLista()`, `existeEnLista()` |
+|`ComandoRegistrarUsuario()`	    |Proceso completo de registro de usuario	    |`buscar()`, `generarID()`, `seleccionarPreferencias()`, `insertar()`, `imprimirUsuario()`  |
+|`ComandoIngresarUsuario()`	        |Proceso de autenticación de usuario	        |`buscar()`, `verificarPassword()`                                                          |
+
+### Interfaz de Usuario (interfaz.h/cpp)
+
+Función	Descripción	Relaciones/Dependencias
+
+|mostrarMenuUsuario(Usuario*)	Menú principal después de login	verCarrito(), verListaDeseos(), verHistorial(), verDetallesProducto(), generarRecomendaciones(), buscarPorCategoria(), etc.
+|verCarrito(Usuario*)	Muestra y gestiona carrito de compras	Accede a catalogoGlobal
+|verListaDeseos(Usuario*)	Muestra y gestiona lista de deseos	Accede a catalogoGlobal
+|verHistorial(Usuario*)	Muestra historial de productos vistos	Accede a catalogoGlobal
+|verDetallesProducto(int, Usuario*)	Muestra detalles completos de un producto	insertarLista() (para historial)
+|mostrarProductosPorCategoria()	Muestra productos por categoría específica	buscarPorCategoria()
+|Mainmenu()	Menú principal del sistema	ComandoRegistrarUsuario(), ComandoIngresarUsuario()
+
+### Catálogo de Productos (catalogo.h/cpp)
+
+Función	Descripción	Relaciones/Dependencias
+inicializarCatalogo()	Carga productos iniciales en memoria	insertarEnLista()
+buscarPorCategoria()	Filtra productos por categoría	aMinusculas()
+buscarPorRangoPrecios()	Filtra productos por rango de precios	-
+buscarPorMarca()	Filtra productos por marca	aMinusculas()
+buscarPorDescripcion()	Busca productos por palabra clave en descripción	aMinusculas()
+obtenerCategoriasUnicas()	Obtiene lista de categorías únicas	existeEnLista(), insertarLista()
+obtenerMarcasUnicas()	Obtiene lista de marcas únicas	existeEnLista(), insertarLista()
