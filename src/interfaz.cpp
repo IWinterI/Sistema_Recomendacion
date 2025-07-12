@@ -1,8 +1,8 @@
-#include "interfaz.h"
-#include "usuario.h"
-#include "catalogo.h"
-#include "recomendacion.h"
-#include "utilidades.h"
+#include "../include/interfaz.h"
+#include "../include/usuario.h"
+#include "../include/catalogo.h"
+#include "../include/recomendacion.h"
+#include "../include/utilidades.h"
 #include <iostream>
 #include <sstream>
 

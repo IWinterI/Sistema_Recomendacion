@@ -1,6 +1,6 @@
-#include "usuario.h"
-#include "utilidades.h"
-#include "catalogo.h"
+#include "../include/usuario.h"
+#include "../include/utilidades.h"
+#include "../include/catalogo.h"
 #include <iostream>
 #include <sstream>
 #include <chrono>

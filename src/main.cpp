@@ -1,6 +1,6 @@
-#include "interfaz.h"
-#include "catalogo.h"
-#include "utilidades.h"
+#include "../include/interfaz.h"
+#include "../include/catalogo.h"
+#include "../include/utilidades.h"
 
 int main()
 {

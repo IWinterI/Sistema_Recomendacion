@@ -7,3 +7,57 @@
 	<algorithm>
 	<iomanip>
 
+1752358023 source:c:\users\usuario\documents\github\sistema_recomendacion\src\catalogo.cpp
+	"../include/catalogo.h"
+	"../include/utilidades.h"
+
+1752357873 c:\users\usuario\documents\github\sistema_recomendacion\include\catalogo.h
+	"estructuras.h"
+
+1752357873 c:\users\usuario\documents\github\sistema_recomendacion\include\estructuras.h
+	<string>
+	<vector>
+	<iostream>
+	<iomanip>
+
+1752357873 c:\users\usuario\documents\github\sistema_recomendacion\include\utilidades.h
+	"estructuras.h"
+	<string>
+
+1752358023 source:c:\users\usuario\documents\github\sistema_recomendacion\src\interfaz.cpp
+	"../include/interfaz.h"
+	"../include/usuario.h"
+	"../include/catalogo.h"
+	"../include/recomendacion.h"
+	"../include/utilidades.h"
+	<iostream>
+	<sstream>
+
+1752357873 c:\users\usuario\documents\github\sistema_recomendacion\include\interfaz.h
+	"estructuras.h"
+
+1752357873 c:\users\usuario\documents\github\sistema_recomendacion\include\usuario.h
+	"estructuras.h"
+
+1752357873 c:\users\usuario\documents\github\sistema_recomendacion\include\recomendacion.h
+	"estructuras.h"
+
+1752358023 source:c:\users\usuario\documents\github\sistema_recomendacion\src\main.cpp
+	"../include/interfaz.h"
+	"../include/catalogo.h"
+	"../include/utilidades.h"
+
+1752358023 source:c:\users\usuario\documents\github\sistema_recomendacion\src\recomendacion.cpp
+	"../include/recomendacion.h"
+	"../include/utilidades.h"
+	"../include/catalogo.h"
+	<algorithm>
+
+1752358023 source:c:\users\usuario\documents\github\sistema_recomendacion\src\utilidades.cpp
+	"../include/utilidades.h"
+	<iostream>
+	<random>
+	<algorithm>
+	<cctype>
+	<limits>
+

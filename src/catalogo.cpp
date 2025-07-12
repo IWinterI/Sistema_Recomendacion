@@ -1,5 +1,5 @@
-#include "catalogo.h"
-#include "utilidades.h"
+#include "../include/catalogo.h"
+#include "../include/utilidades.h"
 
 ListaProducto catalogoGlobal = nullptr;
 

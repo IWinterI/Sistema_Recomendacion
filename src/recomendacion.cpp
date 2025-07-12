@@ -1,6 +1,6 @@
-#include "recomendacion.h"
-#include "utilidades.h"
-#include "catalogo.h"
+#include "../include/recomendacion.h"
+#include "../include/utilidades.h"
+#include "../include/catalogo.h"
 #include <algorithm> // Para std::min
 
 // Función auxiliar para ordenar un mapa y obtener los N mejores elementos
